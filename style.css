@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Special+Elite&family=Inter:wght@400;500;700&display=swap');
+
+:root {
+  --bg-gradient-start: #1d1d1b;
+  --panel-bg: rgba(30, 30, 28, 0.6);
+  --panel-border: rgba(187, 147, 92, 0.2);
+  --primary-color: #bb935c;
+  --primary-hover: #d2a76b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #bb935c;
+  --font-main: 'Inter', sans-serif;
+  --font-logo: 'Alfa Slab One', serif;
+  --font-slogan: 'Special Elite', cursive;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-gradient-start);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E");
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* Glassmorphism Classes */
+.glass {
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Layout */
+.app-container {
+  display: flex;
+  width: 95vw;
+  height: 95vh;
+  margin: auto;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  border-right: 1px solid var(--panel-border);
+  border-radius: 0;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo h1 {
+  font-family: var(--font-logo);
+  font-weight: normal;
+  letter-spacing: 1px;
+  font-size: 32px;
+  background: -webkit-linear-gradient(#e0b780, #bb935c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+.logo p { 
+  color: var(--primary-color); 
+  font-family: var(--font-slogan);
+  font-size: 14px; 
+  margin-bottom: 40px; 
+}
+
+.nav-links { list-style: none; }
+.nav-links li { margin-bottom: 15px; }
+.nav-links a {
+  display: block;
+  text-decoration: none;
+  color: var(--text-muted);
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-weight: 700;
+  font-size: 15px;
+}
+.nav-links a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+.nav-links a.active {
+  background: var(--primary-color);
+  color: #fff;
+}
+
+/* Content Area */
+.content-area {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  position: relative;
+}
+
+header { margin-bottom: 30px; }
+header h2 { font-family: var(--font-logo); font-size: 32px; font-weight: normal; margin-bottom: 8px; letter-spacing: 1px; color: #fff; text-transform: uppercase;}
+header p { font-family: var(--font-slogan); color: var(--primary-color); font-size: 16px;}
+
+h3, h4 { font-family: var(--font-logo); font-weight: normal; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+/* UI Components */
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary { background: var(--primary-color); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-secondary { background: rgba(255,255,255,0.1); color: var(--text-main); border: 1px solid rgba(255,255,255,0.2); }
+.btn-secondary:hover { background: rgba(255,255,255,0.15); }
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  outline: none;
+}
+input:focus, select:focus { border-color: var(--primary-color); }
+label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-muted); }
+
+.inline-control {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* Table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th, .data-table td {
+  padding: 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--panel-border);
+}
+.data-table th { color: var(--text-muted); font-size: 13px; font-weight: 500; text-transform: uppercase; }
+
+/* Grid / Cards */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+.stat-card h3 { font-family: var(--font-slogan); font-size: 18px; color: var(--primary-color); font-weight: 500;}
+.stat-card .stat-value { font-family: var(--font-logo); font-size: 42px; font-weight: normal; color: var(--text-main); margin-top: 10px; }
+
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.w-full { width: 100%; }
+
+#loading {
+  position: absolute; top: 20px; right: 40px;
+  background: var(--primary-color); padding: 5px 15px;
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+
+/* Custom Modal */
+.modal {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.modal.hidden { display: none !important; }
+.modal-content {
+  width: 90%; max-width: 400px;
+  padding: 30px; text-align: center;
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+.modal-content h3 { font-family: var(--font-logo); margin-top: 0; margin-bottom: 5px; font-size:24px; color: var(--primary-hover); font-weight:normal;}
+.modal-content p { color: var(--text-main); font-size: 15px; margin-bottom: 25px; }
+.modal-actions { display: flex; gap: 15px; justify-content: center; }

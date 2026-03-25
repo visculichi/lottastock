@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Control - Whole Lotta Burgers</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container glass">
+    <!-- Sidebar -->
+    <nav class="sidebar glass-panel">
+      <div class="logo">
+        <h1>WLB</h1>
+        <p>Stock Control</p>
+      </div>
+      <ul class="nav-links">
+        <li style="margin-bottom: 25px;">
+          <button id="btn-admin-auth" class="btn btn-secondary w-full" style="display:flex; justify-content:center; align-items:center; gap:8px;">
+            <span id="admin-icon">🔒</span> <span id="admin-text">Acceso Admin</span>
+          </button>
+        </li>
+        <li><a href="#" id="nav-dashboard" class="active">Dashboard (CMV)</a></li>
+        <li><a href="#" id="nav-pos">Punto de Venta (Tickets)</a></li>
+        <li><a href="#" id="nav-inventory">Inventario & Movimientos</a></li>
+        <li><a href="#" id="nav-audit">⚖️ Auditoría Físico vs Teórico</a></li>
+        <li class="admin-only"><a href="#" id="nav-recipes">Gestor de Recetas</a></li>
+        <li class="admin-only"><a href="#" id="nav-history"><span class="icon">📜</span> Historial de Ventas</a></li>
+        <li class="admin-only"><a href="#" id="nav-calculator"><span class="icon">🧮</span> Calculadora CMV Real</a></li>
+      </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+      <!-- Custom Modal -->
+      <div id="custom-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+          <h3 id="modal-title">Aviso</h3>
+          <p id="modal-message" style="margin-bottom:15px;">Mensajería interna</p>
+          <input type="password" id="modal-input" class="hidden" placeholder="****" style="text-align:center; font-size:24px; letter-spacing:10px; margin-bottom: 25px;">
+          <div class="modal-actions">
+            <button class="btn btn-secondary hidden" id="modal-btn-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="modal-btn-ok" style="min-width:100px;">Aceptar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Overlay -->
+      <div id="loading" class="hidden">Cargando...</div>
+
+      <!-- Dashboard View -->
+      <section id="view-dashboard" class="view active">
+        <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>Dashboard Financiero y Ranking</h2>
+            <p style="margin-top:5px; color:var(--text-muted);">Métricas de Negocio y Productos Más Vendidos</p>
+          </div>
+          <div style="display:flex; gap:15px; align-items:flex-end;">
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Desde:</label>
+              <input type="date" id="dash-date-from" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
+              <input type="date" id="dash-date-to" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            </div>
+            <button class="btn btn-primary" id="btn-filter-dash" style="padding:8px 15px;">🔍 Filtrar Rango</button>
+          </div>
+        </header>
+
+        <div class="cards-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="card stat-card glass-panel" style="border-left: 4px solid var(--primary-color);">
+            <h3>Ventas Brutas Totales</h3>
+            <p class="stat-value" id="dash-sales">$0</p>
+          </div>
+          <div class="card stat-card glass-panel" style="border-left: 4px solid #ef4444;">
+            <h3>C.M.V. (Costo Ventas Teórico)</h3>
+            <div style="display:flex; align-items:center; gap:15px;">
+              <p class="stat-value" id="dash-cmv" style="font-size:36px; margin:0;">$0</p>
+              <p id="dash-cmv-perc" style="font-size:32px; color:#f59e0b; margin:0; font-weight:bold; line-height:1;">0%</p>
+            </div>
+          </div>
+          <div class="card stat-card glass-panel" style="border-left: 4px solid #10b981;">
+            <h3>Ganancia / Margen Base</h3>
+            <p class="stat-value" id="dash-margin">$0</p>
+          </div>
+          
+          <div class="glass-panel" style="grid-column: span 3;">
+            <h3 style="margin-bottom:15px; color:var(--primary-color);">🏆 Top 10 Productos Más Vendidos</h3>
+            <div id="dash-ranking-list" style="display:flex; flex-wrap:wrap; gap:12px;">
+              <p style="color:var(--text-muted);">Cargando ranking del dashboard...</p>
+            </div>
+          </div>
+
+          <div class="card stat-card glass-panel" style="grid-column: span 3; border-left: 4px solid #8b5cf6;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h3>Inventario Valorizado Actual (Capital Estancado)</h3>
+                <p style="margin-top: 5px; color: var(--text-muted); font-size:13px;">Suma total monetaria de todos los insumos físicos actualmente en los depósitos (Independiente del filtro de fechas).</p>
+              </div>
+              <p class="stat-value" id="dash-inventory-val" style="margin:0; font-size: 52px;">$0</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Calculator View -->
+      <section id="view-calculator" class="view hidden">
+        <header style="display:flex; justify-content:space-between; align-items:flex-end;">
+          <div>
+            <h2>🧮 Hoja de Conteo: CMV Real (Auditoría)</h2>
+            <p>Calculadora independiente. Carga tu stock físico (por unidades/gramos) para calcular la diferencia financiera.</p>
+          </div>
+          <button class="btn btn-secondary" id="btn-load-calc-items" style="padding:10px 20px;">🔄 Cargar Insumos de la Base de Datos</button>
+        </header>
+
+        <div class="cards-grid">
+          <div class="glass-panel" style="grid-column: span 3; padding:0; overflow-x:auto;">
+            <table class="data-table" style="margin-top:0;">
+              <thead>
+                <tr>
+                  <th style="width:25%;">Insumo (Unidad)</th>
+                  <th style="width:15%;">Costo Unit. ($)</th>
+                  <th>Stock Inicial</th>
+                  <th>+ Compras</th>
+                  <th>- Stock Final</th>
+                  <th style="width:15%;">================<br>Costo Consumido ($)</th>
+                </tr>
+              </thead>
+              <tbody id="calc-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Toca "Cargar Insumos" para generar la hoja de conteo.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="cards-grid" style="grid-template-columns: repeat(2, 1fr); margin-top:20px;">
+          <div class="glass-panel" style="display:flex; flex-direction:column; justify-content:center;">
+            <h3>Cierre Financiero</h3>
+            <div style="margin-top:15px;">
+              <label style="color:#10b981; font-weight:bold;">Ventas Brutas Totales del Mes ($)</label>
+              <input type="number" id="calc-ventas" placeholder="Ej: 3000000" style="padding:12px; font-size:20px; border-radius:8px; border:2px solid #10b981; background:rgba(16,185,129,0.05); color:#10b981; width:100%; margin-top:5px;" value="0">
+            </div>
+            <button class="btn btn-primary w-full" id="btn-calcular-cmv" style="margin-top:20px; padding:15px; font-size:18px;">Calcular Resultado (CMV %)</button>
+          </div>
+
+          <div class="glass-panel" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+            <h3 style="color:var(--text-muted); font-size:14px; letter-spacing:2px; text-transform:uppercase;">Resultado Final de Auditoría</h3>
+            <div style="display:flex; gap:40px; margin-top:20px;">
+              <div>
+                <p style="font-size:14px; color:var(--text-muted); margin-bottom:5px;">Plata Perdida (CMV $)</p>
+                <h2 id="res-cmv-money" style="font-size:38px; color:#ef4444; margin:0;">$0</h2>
+              </div>
+              <div>
+                <p style="font-size:14px; color:var(--text-muted); margin-bottom:5px;">Tasa de Costo (CMV %)</p>
+                <h2 id="res-cmv-perc" style="font-size:55px; color:#f59e0b; margin:0; line-height:1;">0.0%</h2>
+              </div>
+            </div>
+            <div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1); width:100%;">
+              <p style="font-size:14px; color:var(--text-muted); margin-bottom:5px;">Margen de Ganancia Bruto Real</p>
+              <h2 id="res-margen-money" style="font-size:32px; color:#10b981; margin:0; display:inline-block; margin-right:10px;">$0</h2>
+              <span id="res-margen-perc" style="font-size:22px; color:#10b981;">(0.0%)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- POS View -->
+      <section id="view-pos" class="view hidden">
+        <header style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>Punto de Venta</h2>
+            <p>Toca las tarjetas de los productos para armar el ticket y descontar del inventario.</p>
+          </div>
+          <div style="text-align:right;">
+            <label style="font-size:12px; font-weight:bold; color:var(--primary-color); display:block; margin-bottom:5px;">Fecha del Ticket / Parte Diaria:</label>
+            <input type="date" id="pos-sale-date" style="padding:10px; font-size:16px; border-radius:8px; border:2px solid var(--border-color); background:rgba(255,255,255,0.05); color:white; outline:none;">
+          </div>
+        </header>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+          <!-- Left: Products Grid -->
+          <div style="flex: 2; min-width: 300px;">
+            <h3>Catálogo de Productos</h3>
+            <div id="pos-category-filters" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+              <!-- filters go here -->
+            </div>
+            <div id="pos-products-grid" class="cards-grid" style="margin-top:15px;">
+               <!-- Cards will be injected here via JS -->
+            </div>
+          </div>
+          
+          <!-- Right: Ticket Summary -->
+          <div class="glass-panel" style="flex: 1; min-width: 250px; align-self: flex-start;">
+            <h3 style="color:var(--primary-color);">Ticket Actual</h3>
+            
+            <label style="margin-top:15px;">Número de Ticket</label>
+            <input type="text" id="pos-ticket-number" placeholder="Ej: T-001024">
+            
+            <div class="ticket-list" id="ticket-list" style="margin: 20px 0; min-height: 150px;">
+              <p style="color:var(--text-muted); font-size:13px;">No hay productos en el ticket.</p>
+            </div>
+            
+            <button class="btn btn-primary w-full" id="btn-process-sale" style="font-size:16px; padding:15px;">CONFIRMAR VENTA (OK)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- History View -->
+      <section id="view-history" class="view hidden">
+        <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          <h2>Historial de Ventas y Tickets</h2>
+          <div style="display:flex; gap:15px; align-items:flex-end;">
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Desde:</label>
+              <input type="date" id="history-date-from" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
+              <input type="date" id="history-date-to" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            </div>
+            <button class="btn btn-primary" id="btn-filter-history" style="padding:8px 15px;">🔍 Filtrar Rango</button>
+          </div>
+        </header>
+
+        <div class="cards-grid">
+          <div class="glass-panel" style="grid-column: span 3; padding:0; overflow:hidden;">
+            <table class="data-table" style="margin-top:0;">
+              <thead>
+                <tr>
+                  <th>Fecha/Hora del Ticket</th>
+                  <th>N° Ticket / Referencia</th>
+                  <th>Detalle de Productos Vendidos</th>
+                  <th style="text-align:center;">Acción Crítica Administrativa</th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody">
+                <tr><td colspan="4" style="text-align:center; padding:20px;">Cargando registro histórico...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Inventory View -->
+      <section id="view-inventory" class="view hidden">
+        <header class="flex-between">
+          <div>
+            <h2>Gestión de Stock</h2>
+            <p>Múltiples depósitos, ingresos y conteos iniciales/finales.</p>
+          </div>
+          <button id="btn-reset-stock" class="btn" style="background-color:rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; color:#ef4444; font-family:var(--font-slogan);">⚠️ REINICIAR STOCK</button>
+        </header>
+        <div class="tables-container">
+          <div class="glass-panel w-full" style="margin-bottom: 20px;">
+            <h3>Registrar Movimiento</h3>
+            <div class="cards-grid" style="margin-top:15px; grid-template-columns: repeat(4, 1fr);">
+              <div>
+                <label>Tipo de Movimiento</label>
+                <select id="mov-type">
+                  <option value="in_purchase">Ingreso por Compra (+)</option>
+                  <option value="adjustment_initial">Stock Inicial (+)</option>
+                  <option value="adjustment_final">Mapeo/Ajuste Final (-)</option>
+                  <option value="out_waste">Merma / Pérdida (-)</option>
+                </select>
+              </div>
+              <div>
+                <label>Insumo / Artículo</label>
+                <input type="text" id="mov-item" list="mov-item-list" placeholder="🔎 Buscar insumo..." autocomplete="off" style="width:100%; border:1px solid var(--border-color); background:rgba(255,255,255,0.05); color:white; padding:10px; border-radius:8px;">
+                <datalist id="mov-item-list"></datalist>
+              </div>
+              <div>
+                <label>Modo de Carga</label>
+                <select id="mov-mode">
+                  <option value="unit">Sueltos (Ud/Gr base)</option>
+                  <option value="bulk">Por Bulto Cerrado (Pack)</option>
+                </select>
+              </div>
+              <div>
+                <label>Cantidad Múltiplo</label>
+                <input type="number" id="mov-qty" min="0.1" step="0.1" value="1">
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btn-save-movement" style="margin-top:10px;">Registrar Movimiento</button>
+          </div>
+
+          <div class="glass-panel w-full">
+            <div class="action-bar flex-between" style="margin-bottom:15px;">
+              <h3>Inventario Actual</h3>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Depósito</th>
+                  <th>Artículo / Insumo</th>
+                  <th>Cantidad</th>
+                  <th>Unidad</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-tbody">
+                <tr><td colspan="4">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="glass-panel w-full" style="margin-top:20px;">
+            <div class="action-bar flex-between" style="margin-bottom:15px;">
+              <h3>Kárdex: Historial de Movimientos</h3>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha y Hora</th>
+                  <th>Insumo / Artículo</th>
+                  <th>Cant.</th>
+                  <th>Tipo de Transacción</th>
+                  <th>Nota / Origen</th>
+                </tr>
+              </thead>
+              <tbody id="kardex-tbody">
+                <tr><td colspan="5">Cargando movimientos...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Audit View -->
+      <section id="view-audit" class="view hidden">
+        <header>
+          <h2>⚖️ Auditoría Físico vs Teórico</h2>
+          <p>Cruza el stock calculado por el sistema contra lo que cuentas físicamente en las cámaras.</p>
+        </header>
+
+        <div class="cards-grid">
+          <div class="glass-panel w-full" style="grid-column: span 3; overflow-x:auto; padding:0;">
+            <table class="data-table" style="margin-top:0;">
+              <thead>
+                <tr>
+                  <th>Insumo / Artículo</th>
+                  <th>Ud.</th>
+                  <th>Stock Teórico (Sist.)</th>
+                  <th style="color:var(--primary-color);">Físico Real (Input)</th>
+                  <th>Diferencia Evidenciada</th>
+                  <th style="text-align:center;">Acción de Calibración</th>
+                </tr>
+              </thead>
+              <tbody id="audit-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Cargando módulo de auditoría...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recipes View -->
+      <section id="view-recipes" class="view hidden">
+        <header>
+          <h2>Gestor de Insumos y Recetas</h2>
+          <p>Da de alta materias primas (paquetes/bultos) y arma tus productos finales.</p>
+        </header>
+
+        <div class="cards-grid">
+          <!-- Alta Materia Prima -->
+          <div class="glass-panel" id="raw-form-container">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 id="raw-form-title">1. Nueva Materia Prima</h3>
+              <button id="btn-cancel-raw" class="btn btn-secondary hidden" style="padding:4px 8px;">Cancelar</button>
+            </div>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px; margin-top:5px;">Ej: Pan, Medallón, Queso Dambo.</p>
+            
+            <div style="display:flex; gap:10px;">
+              <div style="flex:2;">
+                <label>Nombre del Insumo</label>
+                <input type="text" id="abm-item-name" placeholder="Ej: Pan TBB">
+              </div>
+              <div style="flex:1;">
+                <label>Familia / Categoría</label>
+                <input type="text" id="abm-item-category" placeholder="Ej: Panificados" value="General">
+              </div>
+            </div>
+            
+            <label>Unidad de Medida (Consumo)</label>
+            <select id="abm-item-unit">
+              <option value="unidades">Unidades (U)</option>
+              <option value="gr">Gramos (gr)</option>
+              <option value="cc">Centímetros Cúbicos (cc)</option>
+            </select>
+            
+            <div style="display:flex; gap:10px;">
+              <div style="flex:1;">
+                <label>Presentación / Bulto</label>
+                <input type="text" id="abm-item-bulk" placeholder="Ej: Horma 3kg">
+              </div>
+              <div style="flex:1;">
+                <label>Cant. por Bulto</label>
+                <input type="number" id="abm-item-bulk-size" placeholder="Ej: 3000" value="1" min="1">
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:5px;">
+              <div style="flex:1;">
+                <label>Precio del Bulto ($)</label>
+                <input type="number" id="abm-item-bulk-cost" placeholder="Ej: 30000" min="0" step="0.01">
+              </div>
+              <div style="flex:1;">
+                <label>Costo Unit/Gr ($)</label>
+                <input type="number" id="abm-item-cost" placeholder="Ej: 10" value="0" min="0" step="0.01" style="background:rgba(255,255,255,0.05); color:var(--primary-color); font-weight:bold;">
+              </div>
+            </div>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">* El Costo Unitario/Gramos se calcula solo al ingresar el precio del bulto.</p>
+            
+            <button class="btn btn-secondary w-full" id="btn-save-item" style="margin-top:10px;">Guardar Insumo</button>
+          </div>
+
+          <!-- Alta Producto / Receta -->
+          <div class="glass-panel" style="grid-column: span 2;" id="recipe-form-container">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 id="recipe-form-title">2. Nuevo Producto Elaborado</h3>
+              <button id="btn-cancel-recipe" class="btn btn-secondary hidden" style="padding:4px 8px;">Cancelar Edición</button>
+            </div>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px; margin-top:5px;">Ej: Cheese Burger, Americana.</p>
+            
+            <div style="display:flex; gap:15px;">
+              <div style="flex:2;">
+                <label>Nombre del Producto a Vender</label>
+                <input type="text" id="abm-recipe-name" placeholder="Ej: Cheese Bacon">
+              </div>
+              <div style="flex:1;">
+                <label>P. Venta ($)</label>
+                <input type="number" id="abm-recipe-price" placeholder="Ej: 8500" value="0">
+              </div>
+              <div style="flex:1;">
+                <label>Familia / Categoría</label>
+                <input type="text" id="abm-recipe-category" placeholder="Ej: Hamburguesas" value="Hamburguesas">
+              </div>
+            </div>
+
+            <div style="display:flex; gap:15px; margin-top:10px;">
+              <div style="flex:1;">
+                <label>Rinde (Gramos o Cantidad)</label>
+                <input type="number" id="abm-recipe-yield" placeholder="Ej: 2000" value="1" min="1">
+              </div>
+              <div style="flex:1;">
+                <label>Unidad de Medida</label>
+                <select id="abm-recipe-unit">
+                  <option value="unidades">Unidades / Porciones</option>
+                  <option value="gr">Gramos (gr)</option>
+                  <option value="cc">Centímetros Cúbicos (cc)</option>
+                </select>
+              </div>
+              <div style="flex:2;"></div>
+            </div>
+
+            <div style="margin-top:15px; display:flex; align-items:center;">
+              <input type="checkbox" id="abm-recipe-is-sale" checked style="width:18px; height:18px; margin-right:10px;">
+              <label for="abm-recipe-is-sale" style="margin:0; font-size:14px; cursor:pointer;">Mostrar en Punto de Venta (Venta al Público)</label>
+            </div>
+            
+            <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">
+              <label>Agregar Ingredientes a la Receta</label>
+              <div class="inline-control">
+                <input type="text" id="abm-recipe-ingredient" list="abm-recipe-ingredient-list" placeholder="🔎 Buscar insumo..." autocomplete="off" style="flex:1; border:1px solid var(--border-color); background:rgba(255,255,255,0.05); color:white; padding:10px; border-radius:8px;">
+                <datalist id="abm-recipe-ingredient-list"></datalist>
+                <input type="number" id="abm-recipe-qty" placeholder="Cant." style="width:100px;">
+                <button class="btn btn-secondary" id="btn-add-ingredient">+</button>
+              </div>
+              <div class="ticket-list" id="recipe-list" style="max-height:150px; overflow-y:auto;">
+                <!-- Ingredients for new recipe -->
+              </div>
+            </div>
+
+            <button class="btn btn-primary w-full" id="btn-save-recipe" style="margin-top:20px;">Guardar Producto Elaborado</button>
+          </div>
+        </div>
+
+        <!-- Section: Existing Items Lists -->
+        <div class="cards-grid" style="margin-top:20px;">
+          <div class="glass-panel">
+            <h3>Listado de Insumos</h3>
+            <div id="raw-filters" style="display:flex; gap:10px; margin-top:10px; margin-bottom:15px; overflow-x:auto;"></div>
+            <table class="data-table" style="margin-top:0;">
+              <tbody id="list-raws"></tbody>
+            </table>
+          </div>
+          <div class="glass-panel" style="grid-column: span 2;">
+            <h3>Listado de Elaborados</h3>
+            <div id="recipe-filters" style="display:flex; gap:10px; margin-top:10px; margin-bottom:15px; overflow-x:auto;"></div>
+            <table class="data-table" style="margin-top:0;">
+              <tbody id="list-recipes-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    
+    // Supabase config
+    const supabaseUrl = 'https://vcswtsisessamawnqanz.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjc3d0c2lzZXNzYW1hd25xYW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMDQzOTksImV4cCI6MjA4OTg4MDM5OX0.qASSUWcjtc6dhEKN7P-e8Ubnav4enHpvhXT4JKop91Q'
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Elements
+    const loadingEl = document.getElementById('loading');
+    const navLinks = document.querySelectorAll('.nav-links a');
+    const views = document.querySelectorAll('.view');
+    const posProductsGrid = document.getElementById('pos-products-grid');
+    const posCategoryFilters = document.getElementById('pos-category-filters');
+    const btnProcessSale = document.getElementById('btn-process-sale');
+    const ticketList = document.getElementById('ticket-list');
+    const posTicketNum = document.getElementById('pos-ticket-number');
+    const invTbody = document.getElementById('inventory-tbody');
+    const movType = document.getElementById('mov-type');
+    const movItem = document.getElementById('mov-item');
+    const movQty = document.getElementById('mov-qty');
+    const btnSaveMov = document.getElementById('btn-save-movement');
+    
+    // Dashboard Elems
+    const dashSales = document.getElementById('dash-sales');
+    const dashCmv = document.getElementById('dash-cmv');
+    const dashMargin = document.getElementById('dash-margin');
+    const dashInvVal = document.getElementById('dash-inventory-val');
+
+    // Modal Elements
+    const customModal = document.getElementById('custom-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalMessage = document.getElementById('modal-message');
+    const modalInput = document.getElementById('modal-input');
+    const modalBtnCancel = document.getElementById('modal-btn-cancel');
+    const modalBtnOk = document.getElementById('modal-btn-ok');
+
+    window.customAlert = function(msg, title = "Aviso") {
+      return new Promise(resolve => {
+        modalTitle.innerText = title;
+        modalMessage.innerText = msg;
+        modalBtnCancel.classList.add('hidden');
+        customModal.classList.remove('hidden');
+        
+        const onOk = () => {
+          customModal.classList.add('hidden');
+          modalBtnOk.removeEventListener('click', onOk);
+          resolve(true);
+        };
+        modalBtnOk.addEventListener('click', onOk);
+      });
+    };
+
+    window.customConfirm = function(msg, title = "Confirmar Acción") {
+      return new Promise(resolve => {
+        modalTitle.innerText = title;
+        modalMessage.innerText = msg;
+        modalBtnCancel.classList.remove('hidden');
+        customModal.classList.remove('hidden');
+        
+        const cleanup = () => {
+          customModal.classList.add('hidden');
+          modalBtnOk.removeEventListener('click', onOk);
+          modalBtnCancel.removeEventListener('click', onCancel);
+        };
+        const onOk = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+        
+        modalBtnOk.addEventListener('click', onOk);
+        modalBtnCancel.addEventListener('click', onCancel);
+      });
+    };
+
+    window.customPrompt = function(msg, title = "Ingresar Dato", type = "text") {
+      return new Promise(resolve => {
+        modalTitle.innerText = title;
+        modalMessage.innerText = msg;
+        modalInput.type = type;
+        modalInput.value = '';
+        modalInput.classList.remove('hidden');
+        modalBtnCancel.classList.remove('hidden');
+        customModal.classList.remove('hidden');
+        modalInput.focus();
+        
+        const cleanup = () => {
+          customModal.classList.add('hidden');
+          modalInput.classList.add('hidden');
+          modalBtnOk.removeEventListener('click', onOk);
+          modalBtnCancel.removeEventListener('click', onCancel);
+        };
+        const onOk = () => { cleanup(); resolve(modalInput.value); };
+        const onCancel = () => { cleanup(); resolve(null); };
+        
+        modalBtnOk.addEventListener('click', onOk);
+        modalBtnCancel.addEventListener('click', onCancel);
+      });
+    };
+
+    // ABM Elements
+    const abmItemName = document.getElementById('abm-item-name');
+    const abmItemCategory = document.getElementById('abm-item-category');
+    const abmItemUnit = document.getElementById('abm-item-unit');
+    const abmItemBulk = document.getElementById('abm-item-bulk');
+    const abmItemBulkSize = document.getElementById('abm-item-bulk-size');
+    const abmItemBulkCost = document.getElementById('abm-item-bulk-cost');
+    const abmItemCost = document.getElementById('abm-item-cost');
+
+    // Auto-Calculator Bindings
+    abmItemBulkCost.addEventListener('input', () => {
+      const bc = parseFloat(abmItemBulkCost.value) || 0;
+      const bs = parseFloat(abmItemBulkSize.value) || 1;
+      abmItemCost.value = (bc / bs).toFixed(2);
+    });
+    abmItemBulkSize.addEventListener('input', () => {
+      const bc = parseFloat(abmItemBulkCost.value) || 0;
+      const bs = parseFloat(abmItemBulkSize.value) || 1;
+      abmItemCost.value = (bc / bs).toFixed(2);
+    });
+    abmItemCost.addEventListener('input', () => {
+      const ic = parseFloat(abmItemCost.value) || 0;
+      const bs = parseFloat(abmItemBulkSize.value) || 1;
+      abmItemBulkCost.value = (ic * bs).toFixed(2);
+    });
+    const btnSaveItem = document.getElementById('btn-save-item');
+    const rawFormTitle = document.getElementById('raw-form-title');
+    const btnCancelRaw = document.getElementById('btn-cancel-raw');
+
+    const abmRecipeName = document.getElementById('abm-recipe-name');
+    const abmRecipePrice = document.getElementById('abm-recipe-price');
+    const abmRecipeCategory = document.getElementById('abm-recipe-category');
+    const abmRecipeIsSale = document.getElementById('abm-recipe-is-sale');
+    const abmRecipeYield = document.getElementById('abm-recipe-yield');
+    const abmRecipeUnit = document.getElementById('abm-recipe-unit');
+    const abmRecipeIng = document.getElementById('abm-recipe-ingredient');
+    
+    if(abmRecipeYield) abmRecipeYield.addEventListener('input', () => { if(typeof renderRecipeList === 'function') renderRecipeList(); });
+    if(abmRecipeUnit) abmRecipeUnit.addEventListener('change', () => { if(typeof renderRecipeList === 'function') renderRecipeList(); });
+    const abmRecipeQty = document.getElementById('abm-recipe-qty');
+    const btnAddIng = document.getElementById('btn-add-ingredient');
+    const btnSaveRecipe = document.getElementById('btn-save-recipe');
+    const recipeList = document.getElementById('recipe-list');
+    const recipeFormTitle = document.getElementById('recipe-form-title');
+    const btnCancelRecipe = document.getElementById('btn-cancel-recipe');
+    
+    // Lists UI
+    const listRaws = document.getElementById('list-raws');
+    const listRecipesTable = document.getElementById('list-recipes-table');
+    const rawFilters = document.getElementById('raw-filters');
+    const recipeFilters = document.getElementById('recipe-filters');
+
+    // State
+    let editingRecipeId = null;
+    let editingRawId = null;
+    let posItemsData = [];
+    let rawItemsData = [];
+    let finalItemsData = [];
+    let allItemsGlobal = [];
+    let currentTicketItems = [];
+    let currentRecipeItems = [];
+    let defaultDepositId = null;
+
+    function showLoading(show) {
+      if (show) loadingEl.classList.remove('hidden');
+      else loadingEl.classList.add('hidden');
+    }
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
+    }
+
+    // --- API Logic ---
+    async function calculateDashboardVariables(fromStr, toStr) {
+      let salesQuery = supabase.from('sales').select('id, created_at');
+      let movQuery = supabase.from('stock_movements').select('quantity, reference_id, items(cost)').eq('movement_type', 'sale_deduction');
+      let sItemsQuery = supabase.from('sale_items').select('quantity, product_id, sale_id, items(name, sale_price)');
+
+      if (fromStr) {
+        const dFrom = new Date(fromStr);
+        dFrom.setMinutes(dFrom.getMinutes() + dFrom.getTimezoneOffset());
+        const ds = dFrom.toISOString();
+        salesQuery = salesQuery.gte('created_at', ds);
+      }
+      if (toStr) {
+        const dTo = new Date(toStr);
+        dTo.setMinutes(dTo.getMinutes() + dTo.getTimezoneOffset());
+        dTo.setDate(dTo.getDate() + 1); // add 1 day to cover until close hours
+        const ds = dTo.toISOString();
+        salesQuery = salesQuery.lt('created_at', ds);
+      }
+
+      const { data: validSales } = await salesQuery;
+      const validSaleIds = validSales ? validSales.map(s => s.id) : [];
+
+      const { data: salesData } = await sItemsQuery;
+      let totalSales = 0;
+      let topProducts = {};
+
+      if (salesData) {
+        const filteredSData = salesData.filter(s => (fromStr || toStr) ? validSaleIds.includes(s.sale_id) : true);
+        totalSales = filteredSData.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.sale_price || 0)), 0);
+        
+        filteredSData.forEach(s => {
+          if(!topProducts[s.product_id]) topProducts[s.product_id] = { name: s.items?.name, qty: 0 };
+          topProducts[s.product_id].qty += s.quantity;
+        });
+      }
+
+      const { data: cmvData } = await movQuery;
+      let cmvTotal = 0;
+      if (cmvData) {
+        const filteredCmvData = cmvData.filter(c => (fromStr || toStr) ? validSaleIds.includes(String(c.reference_id)) : true);
+        cmvTotal = filteredCmvData.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.cost || 0)), 0);
+      }
+
+      // Inventory valuation is global, no date filter
+      const { data: invData } = await supabase.from('inventory').select('quantity, items(cost)');
+      let invTotal = 0;
+      if (invData) {
+        invTotal = invData.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.cost || 0)), 0);
+      }
+      
+      const ranking = Object.values(topProducts).sort((a,b) => b.qty - a.qty).slice(0,10);
+
+      return { totalSales, cmvTotal, invTotal, margin: totalSales - cmvTotal, ranking };
+    }
+
+    async function getDeposits() {
+      const { data, error } = await supabase.from('deposits').select('*')
+      return error ? [] : data;
+    }
+
+    async function getComputedItems() {
+      const { data: allItems } = await supabase.from('items').select('*');
+      if (!allItems) return [];
+      const { data: allRecipes } = await supabase.from('recipes').select('*');
+      
+      const recipesMap = {};
+      if (allRecipes) {
+        allRecipes.forEach(r => {
+          if (!recipesMap[r.product_id]) recipesMap[r.product_id] = [];
+          recipesMap[r.product_id].push(r);
+        });
+      }
+      
+      const itemsMap = {};
+      allItems.forEach(i => itemsMap[i.id] = i);
+      
+      function getCost(itemId, visited = new Set()) {
+        const item = itemsMap[itemId];
+        if (!item) return 0;
+        if (item.type === 'raw_material') return Number(item.cost || 0);
+        if (item.computed_cost !== undefined) return item.computed_cost;
+        
+        if (visited.has(itemId)) return 0;
+        visited.add(itemId);
+        
+        let total = 0;
+        const ingList = recipesMap[itemId] || [];
+        for (let ing of ingList) {
+          total += Number(ing.quantity) * getCost(ing.ingredient_id, new Set(visited));
+        }
+        const yieldSize = Number(item.bulk_size) || 1;
+        const finalCost = total / yieldSize;
+        item.computed_cost = finalCost;
+        return finalCost;
+      }
+
+      allItems.forEach(i => {
+        if (i.type !== 'raw_material') i.cost = getCost(i.id);
+      });
+      return allItems;
+    }
+
+    async function getPOSItems() {
+      const { data, error } = await supabase.from('items').select('*').eq('type', 'final_product')
+      return error ? [] : data;
+    }
+
+    async function getInventory() {
+      const { data, error } = await supabase.from('inventory').select('id, deposit_id, item_id, quantity, deposits(name), items(name, unit)');
+      return error ? [] : data;
+    }
+
+    async function processSale(ticketNumber, items, depositId, saleDateStr) {
+      try {
+        const insertPayload = { ticket_number: ticketNumber, total_amount: 0 };
+        if (saleDateStr) {
+          const dt = new Date(saleDateStr);
+          dt.setMinutes(dt.getMinutes() + dt.getTimezoneOffset());
+          insertPayload.created_at = dt.toISOString();
+        }
+        const { data: saleData, error: saleError } = await supabase.from('sales').insert(insertPayload).select().single()
+        if (saleError) throw saleError;
+        
+        const itemsToInsert = items.map(i => ({ sale_id: saleData.id, product_id: i.product_id, quantity: i.quantity }));
+        const { error: itemsError } = await supabase.from('sale_items').insert(itemsToInsert)
+        if (itemsError) throw itemsError;
+
+        const { error: rpcError } = await supabase.rpc('process_sale_and_deduct_stock', { p_sale_id: saleData.id, p_deposit_id: depositId });
+        if (rpcError) throw rpcError;
+        return { success: true };
+      } catch (error) {
+        console.error("Sale Error", error);
+        return { success: false, error };
+      }
+    }
+
+    async function registerMovement(type, itemId, depositId, quantity, costOrNotes) {
+      try {
+        const isOut = ['out_waste', 'adjustment_final', 'sale_deduction'].includes(type)
+        const invMod = isOut ? -quantity : quantity
+
+        const { error: moveError } = await supabase.from('stock_movements').insert({ movement_type: type, item_id: itemId, from_deposit_id: isOut ? depositId : null, to_deposit_id: isOut ? null : depositId, quantity: quantity, notes: costOrNotes })
+        if (moveError) throw moveError
+
+        const { data: inv } = await supabase.from('inventory').select('quantity').eq('item_id', itemId).eq('deposit_id', depositId).maybeSingle()
+        if (inv) {
+          await supabase.from('inventory').update({ quantity: Number(inv.quantity) + invMod }).eq('item_id', itemId).eq('deposit_id', depositId)
+        } else {
+          await supabase.from('inventory').insert({ deposit_id: depositId, item_id: itemId, quantity: invMod })
+        }
+        return { success: true }
+      } catch (error) {
+        console.error("Movement Error", error)
+        return { success: false, error }
+      }
+    }
+
+    async function saveRawMaterial(name, unit, bulkName, bulkSize, cost, category) {
+      const payload = { name, unit, type: 'raw_material', bulk_name: bulkName, bulk_size: bulkSize, cost: cost, category };
+      let error = null;
+      if (editingRawId) {
+        const { error: err } = await supabase.from('items').update(payload).eq('id', editingRawId);
+        error = err;
+      } else {
+        const { error: err } = await supabase.from('items').insert(payload);
+        error = err;
+      }
+      return { success: !error, error };
+    }
+
+    async function saveRecipeProduct(name, ingredients, price, category, isSale, rYield, rUnit) {
+      const typeStr = isSale ? 'final_product' : 'assembled';
+      const payload = { name, unit: rUnit, type: typeStr, bulk_name: 'Rendimiento', bulk_size: rYield, sale_price: price, category: category };
+      let productId = editingRecipeId;
+      let error = null;
+
+      if (editingRecipeId) {
+        const { error: err } = await supabase.from('items').update(payload).eq('id', editingRecipeId);
+        error = err;
+        if (!error) await supabase.from('recipes').delete().eq('product_id', editingRecipeId);
+      } else {
+        const { data, error: err } = await supabase.from('items').insert(payload).select().single();
+        if (data) productId = data.id;
+        error = err;
+      }
+      
+      if (error) return { success: false, error };
+
+      const recipeRows = ingredients.map(ing => ({
+        product_id: productId,
+        ingredient_id: ing.id,
+        quantity: ing.qty
+      }));
+
+      const { error: recError } = await supabase.from('recipes').insert(recipeRows);
+      return { success: !recError, error: recError };
+    }
+
+    async function deleteItem(id) {
+      const conf = await customConfirm("¿Seguro que deseas borrar este elemento permanentemente?", "Borrar Producto");
+      if(!conf) return;
+      showLoading(true);
+      const { error } = await supabase.from('items').delete().eq('id', id);
+      if (error) {
+        await customAlert("No podés borrar este insumo/producto porque está siendo usado internamente (ej: es parte de una receta, tiene stock cargado, o ya tiene ventas asociadas). Quitalo de las recetas primero para poder borrarlo.", "Sistema de Seguridad");
+      }
+      await loadRecipesView();
+      showLoading(false);
+    }
+    
+    window.deleteItem = deleteItem;
+
+    window.editRawMaterial = async (id) => {
+       showLoading(true);
+       const { data: item } = await supabase.from('items').select('*').eq('id', id).single();
+       if(!item) return showLoading(false);
+       
+       editingRawId = id;
+       abmItemName.value = item.name || '';
+       abmItemCategory.value = item.category || 'General';
+       abmItemUnit.value = item.unit || 'unidades';
+       abmItemBulk.value = item.bulk_name || '';
+       abmItemBulkSize.value = item.bulk_size || 1;
+       abmItemCost.value = item.cost || 0;
+       
+       // Trigger calculation math for editing
+       const bs = item.bulk_size || 1;
+       const cost = item.cost || 0;
+       abmItemBulkCost.value = (cost * bs).toFixed(2);
+       
+       rawFormTitle.innerText = "Editando Materia Prima";
+       btnCancelRaw.classList.remove('hidden');
+       btnSaveItem.innerText = "Actualizar Insumo";
+       document.getElementById('raw-form-container').scrollIntoView({behavior: "smooth"});
+       showLoading(false);
+    };
+
+    window.editRecipe = async (id) => {
+       showLoading(true);
+       const { data: item } = await supabase.from('items').select('*').eq('id', id).single();
+       if(!item) return showLoading(false);
+       
+       const { data: recipeItems } = await supabase.from('recipes').select('*').eq('product_id', id);
+       const allItemsData = await getComputedItems();
+       const itemsMap = {};
+       if(allItemsData) allItemsData.forEach(i => itemsMap[i.id] = i);
+       
+       currentRecipeItems = recipeItems.map(r => ({
+         id: r.ingredient_id,
+         name: itemsMap[r.ingredient_id] ? itemsMap[r.ingredient_id].name : 'Insumo Eliminado',
+         cost: itemsMap[r.ingredient_id] ? (itemsMap[r.ingredient_id].cost || 0) : 0,
+         qty: r.quantity
+       }));
+       renderRecipeList();
+       
+       editingRecipeId = id;
+       abmRecipeName.value = item.name || '';
+       abmRecipePrice.value = item.sale_price || 0;
+       abmRecipeCategory.value = item.category || 'Hamburguesas';
+       abmRecipeIsSale.checked = item.type === 'final_product';
+       abmRecipeYield.value = item.bulk_size || 1;
+       abmRecipeUnit.value = item.unit || 'unidades';
+       
+       recipeFormTitle.innerText = "Editando Producto Elaborado";
+       btnCancelRecipe.classList.remove('hidden');
+       btnSaveRecipe.innerText = "Actualizar Producto";
+       document.getElementById('recipe-form-container').scrollIntoView({behavior: "smooth"});
+       showLoading(false);
+    };
+
+    window.duplicateRecipe = async (id) => {
+       showLoading(true);
+       const { data: item } = await supabase.from('items').select('*').eq('id', id).single();
+       if(!item) return showLoading(false);
+       
+       const { data: recipeItems } = await supabase.from('recipes').select('*').eq('product_id', id);
+       const allItemsData = await getComputedItems();
+       const itemsMap = {};
+       if(allItemsData) allItemsData.forEach(i => itemsMap[i.id] = i);
+       
+       currentRecipeItems = recipeItems.map(r => ({
+         id: r.ingredient_id,
+         name: itemsMap[r.ingredient_id] ? itemsMap[r.ingredient_id].name : 'Insumo Eliminado',
+         cost: itemsMap[r.ingredient_id] ? (itemsMap[r.ingredient_id].cost || 0) : 0,
+         qty: r.quantity
+       }));
+       renderRecipeList();
+       
+       editingRecipeId = null;
+       abmRecipeName.value = (item.name || '') + ' (Copia)';
+       abmRecipePrice.value = item.sale_price || 0;
+       abmRecipeCategory.value = item.category || 'Hamburguesas';
+       abmRecipeIsSale.checked = item.type === 'final_product';
+       abmRecipeYield.value = item.bulk_size || 1;
+       abmRecipeUnit.value = item.unit || 'unidades';
+       
+       recipeFormTitle.innerText = "2. Nuevo Producto Elaborado (Copia)";
+       btnCancelRecipe.classList.remove('hidden');
+       btnSaveRecipe.innerText = "Crear Producto Elaborado";
+       document.getElementById('recipe-form-container').scrollIntoView({behavior: "smooth"});
+       showLoading(false);
+    };
+
+    function resetRawForm() {
+      editingRawId = null;
+      abmItemName.value = ''; abmItemCategory.value = 'General'; abmItemBulk.value = ''; abmItemBulkSize.value = '1'; abmItemBulkCost.value = ''; abmItemCost.value = '0';
+      rawFormTitle.innerText = "1. Nueva Materia Prima";
+      btnCancelRaw.classList.add('hidden');
+      btnSaveItem.innerText = "Guardar Insumo";
+    }
+
+    function resetRecipeForm() {
+      editingRecipeId = null;
+      abmRecipeName.value = ''; abmRecipePrice.value = '0'; abmRecipeCategory.value = 'Hamburguesas'; abmRecipeIsSale.checked = true;
+      abmRecipeYield.value = '1'; abmRecipeUnit.value = 'unidades';
+      currentRecipeItems = [];
+      renderRecipeList();
+      recipeFormTitle.innerText = "2. Nuevo Producto Elaborado";
+      btnCancelRecipe.classList.add('hidden');
+      btnSaveRecipe.innerText = "Guardar Producto Elaborado";
+    }
+
+    if (btnCancelRaw) btnCancelRaw.addEventListener('click', resetRawForm);
+    if (btnCancelRecipe) btnCancelRecipe.addEventListener('click', resetRecipeForm);
+
+    // --- UI Listeners and Loaders ---
+    async function loadHistoryView(fromStr, toStr) {
+      showLoading(true);
+      const historyTbody = document.getElementById('history-tbody');
+      
+      let query = supabase.from('sales')
+        .select('id, ticket_number, created_at, sale_items(quantity, items(name))')
+        .order('created_at', { ascending: false });
+        
+      if (fromStr) {
+        const dFrom = new Date(fromStr);
+        dFrom.setMinutes(dFrom.getMinutes() + dFrom.getTimezoneOffset());
+        query = query.gte('created_at', dFrom.toISOString());
+      }
+      if (toStr) {
+        const dTo = new Date(toStr);
+        dTo.setMinutes(dTo.getMinutes() + dTo.getTimezoneOffset());
+        dTo.setDate(dTo.getDate() + 1); // add 1 day to cover until close hours
+        query = query.lt('created_at', dTo.toISOString());
+      }
+      const { data: sales, error } = await query;
+      
+      if (!sales || sales.length === 0) {
+        historyTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No hay partes de venta registrados en las fechas seleccionadas.</td></tr>';
+      } else {
+        const isAdmin = localStorage.getItem('role') === 'admin';
+        historyTbody.innerHTML = sales.map(s => {
+          const dateStr = new Date(s.created_at).toLocaleString('es-AR', {dateStyle: 'medium', timeStyle: 'short'});
+          const detailStr = s.sale_items.map(si => `<span style="color:var(--text-main); font-weight:bold; font-size:14px;">${si.quantity}x</span> ${si.items?.name || 'Item eliminado'}`).join('<br>');
+          const delBtn = isAdmin ? `<button class="btn" style="padding:6px 12px; font-size:12px; color:red; border:1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.05);" onclick="window.deleteSaleTicket('${s.id}')">🗑️ Borrar y Devolver Stock</button>` : `<span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px;">Solo Admin</span>`;
+          return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <td style="color:var(--primary-color); font-weight:bold;">${dateStr}</td>
+            <td style="font-family:monospace; font-size:15px; color:#a78bfa;">${s.ticket_number}</td>
+            <td style="font-size:13px; line-height:1.6;">${detailStr}</td>
+            <td style="text-align:center;">${delBtn}</td>
+          </tr>`;
+        }).join('');
+      }
+      showLoading(false);
+    }
+    
+    window.deleteSaleTicket = async (id) => {
+      const conf = await customConfirm("Atención: Borrar este ticket RESTAURARÁ FÍSICAMENTE EN EL INVENTARIO todas las materias primas descontadas por este parte (Carnes, Panes, Gramos de base, etc). Esta acción administrativa es crítica y permanente.", "⚠️ BORRAR VENTA Y RESTAURAR STOCK");
+      if(!conf) return;
+      showLoading(true);
+      const { error } = await supabase.rpc('revert_sale_and_restore_stock', { p_sale_id: id });
+      if (error) {
+        await customAlert("Lentitud u error en base de datos restaurando el lote: " + error.message, "Fallo Fatal");
+      } else {
+        await customAlert("Venta eliminada. Todo el stock restado por las recetas involucradas ha sido devuelto exitosamente a las heladeras y depósitos correspondientes.", "Restauración Contable Exitosa");
+      }
+      showLoading(false);
+      const fromD = document.getElementById('history-date-from')?.value;
+      const toD = document.getElementById('history-date-to')?.value;
+      await loadHistoryView(fromD, toD);
+    };
+
+    async function loadDashboardView(fromStr, toStr) {
+      showLoading(true);
+      const metrics = await calculateDashboardVariables(fromStr, toStr);
+      dashSales.innerText = formatCurrency(metrics.totalSales);
+      dashCmv.innerText = formatCurrency(metrics.cmvTotal);
+      
+      const cmvPercent = metrics.totalSales > 0 ? ((metrics.cmvTotal / metrics.totalSales) * 100).toFixed(1) : 0;
+      const dashCmvPerc = document.getElementById('dash-cmv-perc');
+      if(dashCmvPerc) dashCmvPerc.innerText = `${cmvPercent}%`;
+      
+      dashMargin.innerText = formatCurrency(metrics.margin);
+      dashInvVal.innerText = formatCurrency(metrics.invTotal);
+      
+      const rankingEl = document.getElementById('dash-ranking-list');
+      if(rankingEl) {
+        if(metrics.ranking.length === 0) {
+          rankingEl.innerHTML = '<p style="color:var(--text-muted);">No hay ventas registradas.</p>';
+        } else {
+          rankingEl.innerHTML = metrics.ranking.map((r, i) => `
+            <div class="glass-panel" style="flex:1; min-width:200px; padding:15px; display:flex; align-items:center; gap:12px; border-left:4px solid ${i<3 ? '#f59e0b' : 'var(--primary-color)'};">
+              <div style="font-size:26px; font-weight:black; color:rgba(255,255,255,0.2);">#${i+1}</div>
+              <div>
+                <div style="font-size:14px; font-weight:bold; color:var(--text-main); margin-bottom:4px;">${r.name || 'Eliminado'}</div>
+                <div style="font-size:12px; color:var(--text-muted);">Vendidas: <span style="font-size:16px; font-weight:bold; color:var(--primary-color);">${r.qty}</span></div>
+              </div>
+            </div>
+          `).join('');
+        }
+      }
+      showLoading(false);
+    }
+
+    async function loadInventoryView() {
+      showLoading(true);
+      const movList = document.getElementById('mov-item-list');
+      if (movList && movList.options.length === 0) {
+        const { data: items } = await supabase.from('items').select('*');
+        if(items) {
+          allItemsGlobal = items;
+          movList.innerHTML = items.map(i => `<option value="${i.name} (${i.unit})"></option>`).join('');
+        }
+      }
+
+      const inv = await getInventory();
+      if (inv.length === 0) {
+        invTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay stock registrado</td></tr>';
+      } else {
+        invTbody.innerHTML = inv.map(i => `<tr><td>${i.deposits?.name || '-'}</td><td>${i.items?.name || '-'}</td><td style="font-weight:bold;">${i.quantity}</td><td>${i.items?.unit || '-'}</td></tr>`).join('');
+      }
+      
+      const kardexTbody = document.getElementById('kardex-tbody');
+      if (kardexTbody) {
+        const { data: kardex } = await supabase.from('stock_movements').select('*, items(name, unit)').order('created_at', { ascending: false }).limit(50);
+        if (!kardex || kardex.length === 0) {
+          kardexTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay historial de movimientos.</td></tr>';
+        } else {
+          kardexTbody.innerHTML = kardex.map(m => {
+            const d = new Date(m.created_at).toLocaleString('es-AR', {dateStyle: 'short', timeStyle: 'short'});
+            let typeBadge = '';
+            let valColor = 'white';
+            let formattedQty = m.quantity;
+            if (m.movement_type === 'in_purchase') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🟢 Ingreso Compra</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'adjustment_initial') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📈 Ajuste/Conteo Inicial</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'out_waste') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔴 Merma / Descarte</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
+            else if (m.movement_type === 'adjustment_final') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📉 Ajuste Stock Final</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
+            else if (m.movement_type === 'sale_deduction') { typeBadge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🍔 Consumo Venta (Ticket)</span>'; valColor = '#f59e0b'; formattedQty = '-' + m.quantity; }
+            else if (m.movement_type === 'system_rollback') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">⏪ Reversión Venta Admin</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
+            else typeBadge = `<span style="color:var(--text-muted); font-size:12px;">${m.movement_type}</span>`;
+            
+            return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="color:var(--text-muted); font-size:13px;">${d}</td>
+              <td style="font-weight:bold;">${m.items?.name || '-'} <br><span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(${m.items?.unit || ''})</span></td>
+              <td style="color:${valColor}; font-family:monospace; font-size:15px; font-weight:bold;">${formattedQty}</td>
+              <td>${typeBadge}</td>
+              <td style="font-size:12px; color:var(--text-muted);">${m.notes || ''} ${m.reference_id ? '<br><span style="color:var(--text-muted); font-size:10px;">(Ref: '+m.reference_id+')</span>' : ''}</td>
+            </tr>`;
+          }).join('');
+        }
+      }
+      
+      showLoading(false);
+    }
+
+    async function loadPOSView() {
+      showLoading(true);
+      posItemsData = await getPOSItems();
+      renderPOSGrid(null);
+      showLoading(false);
+    }
+    
+    window.filterPOS = (cat) => {
+      renderPOSGrid(cat);
+    };
+
+    function renderPOSGrid(cat) {
+      const cats = [...new Set(posItemsData.map(i => i.category || 'General'))];
+      posCategoryFilters.innerHTML = `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; border-color:var(--primary-color);" onclick="window.filterPOS(null)">Todas</button>` + 
+        cats.map(c => `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="window.filterPOS('${c}')">${c}</button>`).join('');
+
+      const filtered = cat ? posItemsData.filter(i => (i.category || 'General') === cat) : posItemsData;
+
+      posProductsGrid.innerHTML = filtered.map(i => `
+        <div class="glass-panel stat-card" style="cursor:pointer; text-align:center; padding:15px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="window.addPosItem('${i.id}', '${i.name}')">
+          <h4 style="margin:0; font-size:18px; color:var(--text-main);">${i.name}</h4>
+          <p style="color:var(--text-muted); font-size:14px; margin-top:8px;">${formatCurrency(i.sale_price || 0)}</p>
+        </div>
+      `).join('');
+    }
+
+    window.filterRaws = (cat) => {
+      renderRawsTable(cat);
+    };
+
+    window.filterRecipes = (cat) => {
+      renderRecipesTable(cat);
+    };
+
+    window.toggleInlineEdit = async (id, field, btnEl) => {
+      const inputEl = document.getElementById(`inline-${field === 'sale_price' ? 'sale' : 'cost'}-${id}`);
+      const textEl = document.getElementById(`text-${field === 'sale_price' ? 'sale' : 'cost'}-${id}`);
+      if (!inputEl || !textEl) return;
+
+      if (inputEl.classList.contains('hidden')) {
+        textEl.classList.add('hidden');
+        inputEl.classList.remove('hidden');
+        inputEl.focus();
+        btnEl.innerText = '💾';
+        btnEl.style.color = '#10b981';
+        btnEl.style.background = 'rgba(16,185,129,0.1)';
+        btnEl.style.border = '1px solid #10b981';
+        btnEl.style.padding = '4px 8px';
+        btnEl.style.borderRadius = '4px';
+        btnEl.style.opacity = '1';
+        btnEl.title = "Guardar Precio";
+      } else {
+        const numVal = parseFloat(inputEl.value);
+        if (isNaN(numVal) || numVal < 0) return;
+        
+        btnEl.innerText = '⌛';
+        const payload = {};
+        payload[field] = numVal;
+        
+        const { error } = await supabase.from('items').update(payload).eq('id', id);
+        if (error) {
+          await customAlert("Error actualizando precio: " + error.message, "Fallo de Red");
+          btnEl.innerText = '💾';
+        } else {
+          textEl.innerText = formatCurrency(numVal).replace('$', '').trim();
+          inputEl.classList.add('hidden');
+          textEl.classList.remove('hidden');
+          
+          btnEl.innerText = '✔️';
+          btnEl.style.color = '#10b981';
+          btnEl.style.background = 'transparent';
+          btnEl.style.border = 'none';
+          btnEl.style.padding = '0';
+          btnEl.title = "Editar Precio";
+          
+          setTimeout(() => { 
+            if (btnEl.innerText==='✔️') {
+              btnEl.innerText = '✏️';
+              btnEl.style.opacity = '0.6';
+              btnEl.style.color = 'var(--text-muted)';
+            }
+          }, 1500);
+
+          const allItems = await getComputedItems();
+          if (allItems && allItems.length > 0) {
+            allItemsGlobal = allItems;
+            rawItemsData = allItems.filter(i => i.type === 'raw_material');
+            finalItemsData = allItems.filter(i => ['final_product', 'assembled'].includes(i.type));
+          }
+        }
+      }
+    };
+
+    async function loadAuditView() {
+      showLoading(true);
+      const inv = await getInventory();
+      const auditTbody = document.getElementById('audit-tbody');
+      
+      if (!inv || inv.length === 0) {
+        auditTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay inventario teórico para auditar.</td></tr>';
+      } else {
+        auditTbody.innerHTML = inv.map((i, idx) => {
+          const theoQty = i.quantity || 0;
+          return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);" id="audit-row-${idx}">
+            <td style="font-weight:bold; font-size:13px;">${i.items?.name || '-'}</td>
+            <td style="font-size:12px; color:var(--text-muted);">${i.items?.unit || '-'}</td>
+            <td style="font-family:monospace; font-size:16px;">${theoQty}</td>
+            <td>
+              <input type="number" id="audit-real-${idx}" value="${theoQty}" step="0.1" style="width:100px; padding:6px; background:rgba(139,92,246,0.1); color:#a78bfa; border:1px solid #8b5cf6; border-radius:4px; font-size:15px; font-weight:bold; text-align:center;">
+            </td>
+            <td id="audit-diff-col-${idx}" style="font-family:monospace; font-weight:bold; font-size:15px; color:var(--text-muted);">0</td>
+            <td style="text-align:center;">
+              <button class="btn btn-secondary" id="btn-audit-adj-${idx}" style="padding:6px 12px; font-size:12px;" disabled>Calibrado</button>
+            </td>
+          </tr>`;
+        }).join('');
+
+        // Attach interactive listeners
+        inv.forEach((item, idx) => {
+          const theoryQty = item.quantity || 0;
+          const inputEl = document.getElementById(`audit-real-${idx}`);
+          const diffCol = document.getElementById(`audit-diff-col-${idx}`);
+          const btnAdj = document.getElementById(`btn-audit-adj-${idx}`);
+
+          const reCalc = () => {
+            const realV = parseFloat(inputEl.value);
+            if (isNaN(realV)) return;
+            const diff = realV - theoryQty;
+            
+            if (Math.abs(diff) < 0.001) {
+              diffCol.innerText = '0';
+              diffCol.style.color = 'var(--text-muted)';
+              btnAdj.disabled = true;
+              btnAdj.innerText = 'Calibrado';
+              btnAdj.style.borderColor = 'rgba(255,255,255,0.2)';
+              btnAdj.style.color = 'white';
+            } else if (diff > 0) {
+              diffCol.innerText = '+' + diff.toFixed(1);
+              diffCol.style.color = '#10b981';
+              btnAdj.disabled = false;
+              btnAdj.innerText = 'Registrar Sobrante';
+              btnAdj.style.borderColor = '#10b981';
+              btnAdj.style.color = '#10b981';
+            } else {
+              diffCol.innerText = diff.toFixed(1); // already negative
+              diffCol.style.color = '#ef4444';
+              btnAdj.disabled = false;
+              btnAdj.innerText = 'Registrar Faltante';
+              btnAdj.style.borderColor = '#ef4444';
+              btnAdj.style.color = '#ef4444';
+            }
+          };
+
+          inputEl.addEventListener('input', reCalc);
+          
+          btnAdj.addEventListener('click', async () => {
+            const realV = parseFloat(inputEl.value);
+            const diff = realV - theoryQty;
+            if (Math.abs(diff) < 0.001) return;
+
+            const t = diff > 0 ? 'adjustment_initial' : 'adjustment_final';
+            const cleanDiff = Math.abs(diff);
+
+            // Double check deposit
+            if (!item.deposit_id) return;
+            
+            btnAdj.disabled = true;
+            btnAdj.innerText = 'Guardando...';
+            showLoading(true);
+
+            // Register movement overriding the stock difference
+            const res = await registerMovement(t, item.item_id, item.deposit_id, cleanDiff, 'Auditoría Física / Calibración');
+            if (res.success) {
+              await loadAuditView();
+              await customAlert("Stock recalibrado acorde a la tabla física.", "Éxito");
+            } else {
+              await customAlert("Hubo un error recalibrando: " + res.error?.message, "Error Sistémico");
+              btnAdj.disabled = false;
+              btnAdj.innerText = 'Error';
+            }
+            showLoading(false);
+          });
+        });
+      }
+      showLoading(false);
+    }
+
+    function renderRawsTable(cat) {
+      const cats = [...new Set(rawItemsData.map(i => i.category || 'Gral'))];
+      rawFilters.innerHTML = `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:var(--primary-color);" onclick="window.filterRaws(null)">Todas</button>` + 
+        cats.map(c => `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="window.filterRaws('${c}')">${c}</button>`).join('');
+
+      const filtered = cat ? rawItemsData.filter(i => (i.category || 'Gral') === cat) : rawItemsData;
+      
+      listRaws.innerHTML = filtered.map(i => 
+        `<tr><td>${i.name} <br><span style="font-size:11px;color:var(--text-muted);">(${i.category || 'Gral'})</span></td>
+        <td style="white-space:nowrap;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="font-weight:bold; color:var(--text-main); font-size:16px;">
+               <span style="color:var(--text-muted); font-size:14px; font-weight:normal;">$</span><span id="text-cost-${i.id}">${formatCurrency(i.cost || 0).replace('$', '').trim()}</span>
+               <input type="number" step="0.01" value="${i.cost || 0}" id="inline-cost-${i.id}" class="hidden" style="width:80px; padding:4px; font-size:14px; border-radius:4px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:white; font-weight:bold; outline:none; margin-left:5px;">
+            </div>
+            <button id="btn-edit-cost-${i.id}" onclick="window.toggleInlineEdit('${i.id}', 'cost', this)" style="background:transparent; border:none; color:var(--text-muted); font-size:14px; cursor:pointer; opacity:0.6; padding:0; outline:none; transition:0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Editar Precio">✏️</button>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <button class="btn btn-secondary" style="padding:4px 8px; color:var(--primary-color);" onclick="window.editRawMaterial('${i.id}')">✏️ Editar Dets.</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; color:red;" onclick="window.deleteItem('${i.id}')">Borrar</button>
+          </div>
+        </td></tr>`
+      ).join('');
+    }
+
+    function renderRecipesTable(cat) {
+      const cats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
+      recipeFilters.innerHTML = `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:var(--primary-color);" onclick="window.filterRecipes(null)">Todas</button>` + 
+        cats.map(c => `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="window.filterRecipes('${c}')">${c}</button>`).join('');
+
+      const filtered = cat ? finalItemsData.filter(i => (i.category || 'Gral') === cat) : finalItemsData;
+
+      listRecipesTable.innerHTML = filtered.map(i => 
+        `<tr><td>${i.name} <br><span style="font-size:11px;color:var(--text-muted);">(${i.category || 'Gral'})</span></td>
+        <td style="white-space:nowrap;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <div style="font-weight:bold; color:var(--text-main); font-size:15px;">
+              <span style="color:var(--text-muted); font-size:13px; font-weight:normal;">Venta: $</span><span id="text-sale-${i.id}">${formatCurrency(i.sale_price || 0).replace('$', '').trim()}</span>
+              <input type="number" step="10" value="${i.sale_price || 0}" id="inline-sale-${i.id}" class="hidden" style="width:85px; padding:4px; font-size:14px; border-radius:4px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:white; font-weight:bold; outline:none; margin-left:5px;">
+            </div>
+            <button id="btn-edit-sale-${i.id}" onclick="window.toggleInlineEdit('${i.id}', 'sale_price', this)" style="background:transparent; border:none; color:var(--text-muted); font-size:14px; cursor:pointer; opacity:0.6; padding:0; outline:none; transition:0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Editar Precio">✏️</button>
+          </div>
+          <span style="color:var(--text-muted); font-size:12px;">Costo: ${formatCurrency(i.cost || 0)}</span>
+        </td>
+        <td>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <button class="btn btn-secondary" style="padding:4px 8px; color:var(--primary-color);" onclick="window.editRecipe('${i.id}')">✏️ Editar Dets.</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; color:orange;" onclick="window.duplicateRecipe('${i.id}')">📄 Duplicar</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; color:red;" onclick="window.deleteItem('${i.id}')">Borrar</button>
+          </div>
+        </td></tr>`
+      ).join('');
+    }
+
+    async function loadRecipesView() {
+      showLoading(true);
+      const allItems = await getComputedItems();
+      if (allItems && allItems.length > 0) {
+        allItemsGlobal = allItems;
+        rawItemsData = allItems.filter(i => i.type === 'raw_material');
+        finalItemsData = allItems.filter(i => ['final_product', 'assembled'].includes(i.type));
+
+        const dataList = document.getElementById('abm-recipe-ingredient-list');
+        if(dataList) {
+          dataList.innerHTML = allItems.map(i => `<option value="${i.name} (${i.type === 'raw_material' ? 'M.Prima' : 'Elab.'})"></option>`).join('');
+        }
+
+        renderRawsTable(null);
+        renderRecipesTable(null);
+      }
+      showLoading(false);
+    }
+
+    function renderTicket() {
+      if (currentTicketItems.length === 0) {
+        ticketList.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No hay productos en el ticket.</p>';
+        return;
+      }
+      ticketList.innerHTML = currentTicketItems.map((i, index) => `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.1);"><span>${i.quantity}x ${i.name}</span><button class="btn" style="padding:2px 8px; color:red; background:none;" onclick="window.removeTicketItem(${index})">X</button></div>`).join('');
+    }
+
+    window.removeTicketItem = (index) => {
+      currentTicketItems.splice(index, 1);
+      renderTicket();
+    }
+
+    window.addPosItem = (id, name) => {
+      const existing = currentTicketItems.find(i => i.product_id === id);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        currentTicketItems.push({ product_id: id, name: name, quantity: 1 });
+      }
+      renderTicket();
+    }
+
+    function renderRecipeList() {
+      if (currentRecipeItems.length === 0) {
+        recipeList.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No hay ingredientes añadidos.</p>';
+        return;
+      }
+      let totalCost = 0;
+      const htmlRows = currentRecipeItems.map((i, index) => {
+        const rowCost = i.qty * (i.cost || 0);
+        totalCost += rowCost;
+        const upBtn = index > 0 ? `<button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:10px;" onclick="window.moveRecipeItemUp(${index})">▲</button>` : `<span style="width:22px; display:inline-block;"></span>`;
+        const downBtn = index < currentRecipeItems.length - 1 ? `<button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:10px;" onclick="window.moveRecipeItemDown(${index})">▼</button>` : `<span style="width:22px; display:inline-block;"></span>`;
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+          <span>${i.qty} x ${i.name} <span style="color:var(--text-muted); font-size:12px; margin-left:5px;">(${formatCurrency(rowCost)})</span></span>
+          <div style="display:flex; gap:2px; align-items:center;">
+            ${upBtn}
+            ${downBtn}
+            <button class="btn" style="padding:2px 8px; color:red; background:none; margin-left:8px;" onclick="window.removeRecipeItem(${index})">X</button>
+          </div>
+        </div>`;
+      }).join('');
+      const yieldAmt = parseFloat(abmRecipeYield?.value) || 1;
+      const unitStr = abmRecipeUnit?.value || 'unidades';
+      recipeList.innerHTML = htmlRows + `<div style="text-align:right; font-weight:bold; font-size:16px; margin-top:12px; color:var(--primary-color);">Costo Total Receta: ${formatCurrency(totalCost)}<br><span style="font-size:12px; color:var(--text-muted);">Costo neto por ${unitStr} (Rinde ${yieldAmt}): ${formatCurrency(totalCost / yieldAmt)}</span></div>`;
+    }
+
+    window.removeRecipeItem = (index) => {
+      currentRecipeItems.splice(index, 1);
+      renderRecipeList();
+    }
+
+    window.moveRecipeItemUp = (index) => {
+      if (index > 0) {
+        const temp = currentRecipeItems[index - 1];
+        currentRecipeItems[index - 1] = currentRecipeItems[index];
+        currentRecipeItems[index] = temp;
+        renderRecipeList();
+      }
+    }
+
+    window.moveRecipeItemDown = (index) => {
+      if (index < currentRecipeItems.length - 1) {
+        const temp = currentRecipeItems[index + 1];
+        currentRecipeItems[index + 1] = currentRecipeItems[index];
+        currentRecipeItems[index] = temp;
+        renderRecipeList();
+      }
+    }
+
+    // --- Init Application ---
+    async function initApp() {
+      // --- Admin Auth ---
+      const btnAdminAuth = document.getElementById('btn-admin-auth');
+      const adminIcon = document.getElementById('admin-icon');
+      const adminText = document.getElementById('admin-text');
+      const adminLinks = document.querySelectorAll('.admin-only');
+      const navPos = document.getElementById('nav-pos');
+      
+      let isAdmin = localStorage.getItem('role') === 'admin';
+
+      function updateAuthUI() {
+        if (isAdmin) {
+          if(adminIcon) adminIcon.innerText = '🔓';
+          if(adminText) adminText.innerText = 'Admin Activo';
+          if(btnAdminAuth) btnAdminAuth.style.borderColor = 'var(--primary-color)';
+          adminLinks.forEach(el => el.style.display = 'block');
+        } else {
+          if(adminIcon) adminIcon.innerText = '🔒';
+          if(adminText) adminText.innerText = 'Acceso Admin';
+          if(btnAdminAuth) btnAdminAuth.style.borderColor = 'rgba(255,255,255,0.2)';
+          adminLinks.forEach(el => el.style.display = 'none');
+          if(navPos) navPos.click();
+        }
+      }
+
+      if (btnAdminAuth) {
+        btnAdminAuth.addEventListener('click', async () => {
+          if (isAdmin) {
+            localStorage.removeItem('role');
+            isAdmin = false;
+            updateAuthUI();
+          } else {
+            const pin = await customPrompt("Ingresá el PIN de Administrador (44091321)", "Modo Administrador", "password");
+            if (pin === '44091321') {
+              localStorage.setItem('role', 'admin');
+              isAdmin = true;
+              updateAuthUI();
+            } else if (pin !== null) {
+              await customAlert("Código PIN Incorrecto", "Error de Seguridad");
+            }
+          }
+        });
+        updateAuthUI();
+      }
+
+      navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          navLinks.forEach(n => n.classList.remove('active'));
+          link.classList.add('active');
+          const targetId = link.id.replace('nav-', 'view-');
+          views.forEach(v => v.classList.add('hidden'));
+          document.getElementById(targetId).classList.remove('hidden');
+
+          if (targetId === 'view-inventory') loadInventoryView();
+          if (targetId === 'view-audit') loadAuditView();
+          if (targetId === 'view-pos') loadPOSView();
+          if (targetId === 'view-dashboard') loadDashboardView();
+          if (targetId === 'view-recipes') loadRecipesView();
+          if (targetId === 'view-history') loadHistoryView();
+          if (targetId === 'view-calculator') { const btnLoadCalc = document.getElementById('btn-load-calc-items'); if(btnLoadCalc) btnLoadCalc.click(); }
+        });
+      });
+
+      const btnFilterDash = document.getElementById('btn-filter-dash');
+      if (btnFilterDash) {
+        btnFilterDash.addEventListener('click', () => {
+          const fromD = document.getElementById('dash-date-from')?.value;
+          const toD = document.getElementById('dash-date-to')?.value;
+          loadDashboardView(fromD, toD);
+        });
+      }
+
+      let calcItemsList = [];
+      const btnLoadCalc = document.getElementById('btn-load-calc-items');
+      const calcTbody = document.getElementById('calc-tbody');
+      
+      if (btnLoadCalc) {
+        btnLoadCalc.addEventListener('click', async () => {
+          showLoading(true);
+          const itemsData = await getComputedItems(); 
+          if (!itemsData) { showLoading(false); return; }
+          
+          calcItemsList = itemsData.filter(i => i.type === 'raw_material' || i.type === 'assembled');
+          
+          if (calcItemsList.length === 0) {
+            calcTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados.</td></tr>';
+          } else {
+            calcTbody.innerHTML = calcItemsList.map((i, index) => {
+              return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition: opacity 0.2s;" id="calc-row-container-${index}">
+                <td style="font-size:13px; line-height:1.4; text-align:left;">
+                  <div style="display:flex; align-items:center; justify-content:flex-start; gap:12px;">
+                    <input type="checkbox" id="calc-include-${index}" checked style="accent-color:var(--primary-color); cursor:pointer; margin:0; width:16px; height:16px; flex-shrink:0;">
+                    <div style="text-align:left; display:flex; flex-direction:column; justify-content:center;"><b>${i.name}</b><span style="color:var(--text-muted); font-size:11px;">(${i.unit})</span></div>
+                  </div>
+                </td>
+                <td style="font-family:monospace; color:var(--text-muted); font-size:13px;">${formatCurrency(i.cost || 0)}</td>
+                <td><input type="number" id="calc-min-${index}" value="0" style="width:85px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:14px; text-align:center;"></td>
+                <td><input type="number" id="calc-buy-${index}" value="0" style="width:85px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:14px; text-align:center;"></td>
+                <td><input type="number" id="calc-mout-${index}" value="0" style="width:85px; padding:6px; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981; border-radius:4px; font-size:14px; text-align:center;"></td>
+                <td style="text-align:right; font-weight:bold; color:#ef4444; font-size:14px;" id="calc-row-res-${index}">$0</td>
+              </tr>`;
+            }).join('');
+            
+            calcItemsList.forEach((_, idx) => {
+               const autoCalcRow = () => {
+                 const isIncluded = document.getElementById(`calc-include-${idx}`).checked;
+                 const rowEl = document.getElementById(`calc-row-container-${idx}`);
+                 if(rowEl) rowEl.style.opacity = isIncluded ? "1" : "0.3";
+
+                 const iCost = calcItemsList[idx].cost || 0;
+                 const inicial = parseFloat(document.getElementById(`calc-min-${idx}`).value) || 0;
+                 const compras = parseFloat(document.getElementById(`calc-buy-${idx}`).value) || 0;
+                 const final = parseFloat(document.getElementById(`calc-mout-${idx}`).value) || 0;
+                 
+                 const moneyConsumed = isIncluded ? ((inicial + compras) - final) * iCost : 0;
+                 document.getElementById(`calc-row-res-${idx}`).innerText = formatCurrency(moneyConsumed);
+                 
+                 document.getElementById(`calc-min-${idx}`).disabled = !isIncluded;
+                 document.getElementById(`calc-buy-${idx}`).disabled = !isIncluded;
+                 document.getElementById(`calc-mout-${idx}`).disabled = !isIncluded;
+
+                 // Notify parent calculation loop
+                 const btnCalcularCmv = document.getElementById('btn-calcular-cmv');
+                 if(btnCalcularCmv) btnCalcularCmv.click();
+               };
+               document.getElementById(`calc-min-${idx}`).addEventListener('input', autoCalcRow);
+               document.getElementById(`calc-buy-${idx}`).addEventListener('input', autoCalcRow);
+               document.getElementById(`calc-mout-${idx}`).addEventListener('input', autoCalcRow);
+               document.getElementById(`calc-include-${idx}`).addEventListener('change', autoCalcRow);
+            });
+          }
+          showLoading(false);
+        });
+      }
+
+      const btnCalcularCmv = document.getElementById('btn-calcular-cmv');
+      if (btnCalcularCmv) {
+        btnCalcularCmv.addEventListener('click', () => {
+          const v = parseFloat(document.getElementById('calc-ventas').value) || 0;
+          
+          let cmvMoney = 0;
+          calcItemsList.forEach((item, idx) => {
+             const isIncluded = document.getElementById(`calc-include-${idx}`).checked;
+             if (!isIncluded) return;
+             
+             const iCost = item.cost || 0;
+             const inicial = parseFloat(document.getElementById(`calc-min-${idx}`).value) || 0;
+             const compras = parseFloat(document.getElementById(`calc-buy-${idx}`).value) || 0;
+             const final = parseFloat(document.getElementById(`calc-mout-${idx}`).value) || 0;
+             cmvMoney += ((inicial + compras) - final) * iCost;
+          });
+          
+          if (v <= 0) {
+            document.getElementById('res-cmv-money').innerText = formatCurrency(cmvMoney);
+            document.getElementById('res-cmv-perc').innerText = '0.0%';
+            document.getElementById('res-margen-money').innerText = '$0';
+            document.getElementById('res-margen-perc').innerText = '(0.0%)';
+            return;
+          }
+
+          const cmvPerc = (cmvMoney / v) * 100;
+          
+          const marginMoney = v - cmvMoney;
+          const marginPerc = (marginMoney / v) * 100;
+          
+          document.getElementById('res-cmv-money').innerText = formatCurrency(cmvMoney);
+          document.getElementById('res-cmv-perc').innerText = cmvPerc.toFixed(1) + '%';
+          
+          document.getElementById('res-margen-money').innerText = formatCurrency(marginMoney);
+          document.getElementById('res-margen-perc').innerText = '(' + marginPerc.toFixed(1) + '%)';
+        });
+      }
+
+      const btnFilterHistory = document.getElementById('btn-filter-history');
+      if(btnFilterHistory) {
+        btnFilterHistory.addEventListener('click', () => {
+          const fromD = document.getElementById('history-date-from').value;
+          const toD = document.getElementById('history-date-to').value;
+          loadHistoryView(fromD, toD);
+        });
+      }
+
+      const dateField = document.getElementById('pos-sale-date');
+      if (dateField) dateField.valueAsDate = new Date();
+
+      const btnResetStock = document.getElementById('btn-reset-stock');
+      if(btnResetStock) {
+        btnResetStock.addEventListener('click', async () => {
+          const pin = await customPrompt("Ingresá el PIN de seguridad corporativo para formatear el stock de los depósitos a CERO.", "⚠️ REINICIO CRÍTICO DEL INVENTARIO ⚠️", "password");
+          if(pin === null) return;
+          if(pin !== "44091321") {
+            await customAlert("Código PIN Incorrecto. Operación abortada.", "Error de Autenticación");
+            return;
+          }
+          
+          showLoading(true);
+          // Borrar todo el historial de la tabla inventory
+          await supabase.from('inventory').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          // Y borramos el historial de stock_movements para resetear también el CMV e ingresos fantasma 
+          await supabase.from('stock_movements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          
+          await loadInventoryView();
+          showLoading(false);
+          await customAlert("Todo el stock y el historial contable de movimientos han sido eliminados del servidor. El negocio se ha reiniciado correctamente.", "Reinicio Exitoso");
+        });
+      }
+
+      btnProcessSale.addEventListener('click', async () => {
+        if (currentTicketItems.length === 0) { await customAlert("El ticket está vacío."); return; }
+        if (!defaultDepositId) { await customAlert("Falta dar de alta un Depósito en Supabase."); return; }
+        showLoading(true);
+        btnProcessSale.disabled = true;
+        const tNum = posTicketNum.value || `T-${Math.floor(Math.random()*10000)}`;
+        const sDate = document.getElementById('pos-sale-date').value;
+        const res = await processSale(tNum, currentTicketItems, defaultDepositId, sDate);
+        if (res.success) {
+          await customAlert("Venta registrada y stock descontado por receta!", "Éxito");
+          currentTicketItems = [];
+          posTicketNum.value = '';
+          renderTicket();
+        } else {
+          await customAlert("Error procesando venta: " + res.error?.message, "Error");
+        }
+        btnProcessSale.disabled = false;
+        showLoading(false);
+      });
+
+      if (btnSaveMov) {
+        btnSaveMov.addEventListener('click', async () => {
+          if (!defaultDepositId) { await customAlert("Falta dar de alta un Depósito en Supabase."); return; }
+          const t = movType.value;
+          const searchText = movItem.value;
+          const q = parseFloat(movQty.value);
+          
+          const matchedItem = allItemsGlobal.find(it => `${it.name} (${it.unit})` === searchText);
+          if (!matchedItem) { await customAlert('Escribe y asegura un insumo de la lista desplegable autocompletada.'); return; }
+          
+          const i = matchedItem.id;
+          if (!i || isNaN(q) || q<=0) { await customAlert('Elige un insumo y cantidad válida.'); return; }
+          
+          let finalQty = q;
+          const mode = document.getElementById('mov-mode')?.value;
+          if (mode === 'bulk') {
+            const bulkSize = parseFloat(matchedItem.bulk_size || 1);
+            finalQty = q * bulkSize;
+          }
+          
+          showLoading(true);
+          btnSaveMov.disabled = true;
+          const res = await registerMovement(t, i, defaultDepositId, finalQty, 'Movimiento manual');
+          if (res.success) {
+            await customAlert(mode === 'bulk' ? `Movimiento registrado con éxito. Se multiplicó X${matchedItem.bulk_size || 1} al ser carga por Bulto Cerrado.` : 'Movimiento registrado de forma unitaria directa.', "Ingreso Validado");
+            movItem.value = '';
+            movQty.value = '1';
+            await loadInventoryView();
+          } else {
+            await customAlert('Error guardando el movimiento.', "Error");
+          }
+          btnSaveMov.disabled = false;
+          showLoading(false);
+        });
+      }
+
+      // ABM Handlers
+      if (btnSaveItem) {
+        btnSaveItem.addEventListener('click', async () => {
+          const n = abmItemName.value, u = abmItemUnit.value, bn = abmItemBulk.value, bs = abmItemBulkSize.value, c = abmItemCost.value, cat = abmItemCategory.value;
+          if (!n) { await customAlert('Debes ingresar el nombre del insumo.'); return; }
+          showLoading(true);
+          const { success, error } = await saveRawMaterial(n, u, bn, Number(bs) || 1, Number(c) || 0, cat || 'General');
+          if (success) {
+            await customAlert(editingRawId ? 'Materia prima actualizada exitosamente.' : 'Materia prima creada exitosamente.', "Éxito");
+            resetRawForm();
+            await loadRecipesView(); // refresh selects and lists
+          } else await customAlert('Error guardando insumo: ' + error.message, "Error");
+          showLoading(false);
+        });
+      }
+
+      if (btnAddIng) {
+        btnAddIng.addEventListener('click', async () => {
+          const searchText = abmRecipeIng.value;
+          const matchedItem = allItemsGlobal.find(i => `${i.name} (${i.type === 'raw_material' ? 'M.Prima' : 'Elab.'})` === searchText);
+          
+          if (!matchedItem) { await customAlert('Escribe y selecciona un insumo de la lista desplegable.'); return; }
+          
+          const id = matchedItem.id;
+          const text = searchText;
+          const cost = matchedItem.cost || 0;
+          const qty = parseFloat(abmRecipeQty.value);
+          if (isNaN(qty) || qty <= 0) { await customAlert('La cantidad ingresada no es válida.'); return; }
+          
+          currentRecipeItems.push({ id, name: text, qty, cost });
+          abmRecipeIng.value = '';
+          abmRecipeQty.value = '';
+          renderRecipeList();
+        });
+      }
+
+      if (btnSaveRecipe) {
+        btnSaveRecipe.addEventListener('click', async () => {
+          const name = abmRecipeName.value;
+          const price = abmRecipePrice.value;
+          const cat = abmRecipeCategory.value;
+          const isSale = abmRecipeIsSale.checked;
+          const rYield = parseFloat(abmRecipeYield.value) || 1;
+          const rUnit = abmRecipeUnit.value || 'unidades';
+          if (!name || currentRecipeItems.length === 0) { await customAlert('Debes ingresar el nombre y al menos un ingrediente.'); return; }
+          showLoading(true);
+          const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit);
+          if (success) {
+            await customAlert(editingRecipeId ? 'Receta actualizada exitosamente.' : 'Receta creada exitosamente.', "Éxito");
+            resetRecipeForm();
+            await loadRecipesView(); // refresh lists
+          } else await customAlert('Error guardando receta: ' + error.message, "Error");
+          showLoading(false);
+        });
+      }
+
+      showLoading(true);
+      const deposits = await getDeposits();
+      if (deposits.length > 0) defaultDepositId = deposits[0].id;
+      else await customAlert("IMPORTANTE: No hay depósitos. Crea uno en Supabase primero (Tabla 'deposits') o las ventas/movimientos fallarán.", "Atención Principal");
+      await loadDashboardView();
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
