@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stock Control - Whole Lotta Burgers</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,12 +24,20 @@
         </li>
         <li><a href="#" id="nav-dashboard" class="active">Dashboard (CMV)</a></li>
         <li><a href="#" id="nav-pos">Punto de Venta (Tickets)</a></li>
-        <li><a href="#" id="nav-inventory">Inventario & Movimientos</a></li>
+                <li><a href="#" id="nav-inventory">Inventario & Movimientos <span id="inventory-badge" class="badge-alert hidden">0</span></a></li>
         <li><a href="#" id="nav-audit">⚖️ Auditoría Físico vs Teórico</a></li>
         <li class="admin-only"><a href="#" id="nav-recipes">Gestor de Recetas</a></li>
         <li class="admin-only"><a href="#" id="nav-history"><span class="icon">📜</span> Historial de Ventas</a></li>
         <li class="admin-only"><a href="#" id="nav-calculator"><span class="icon">🧮</span> Calculadora CMV Real</a></li>
+        <li class="admin-only"><a href="#" id="nav-zreport"><span class="icon">💰</span> Reporte Z y Gestión</a></li>
+        <li class="admin-only"><a href="#" id="nav-analytics"><span class="icon">📊</span> Análisis y Proyecciones</a></li>
+        <li class="admin-only"><a href="#" id="nav-procurement"><span class="icon">🛒</span> Planificador de Compras</a></li>
       </ul>
+      <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); margin-bottom:10px;">
+        <button id="btn-refresh-app" class="btn btn-secondary w-full" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: #60a5fa; display:flex; justify-content:center; align-items:center; gap:8px;">
+          <span>🔄</span> <span>Sincronizar/Refrescar</span>
+        </button>
+      </div>
     </nav>
 
     <!-- Main Content Area -->
@@ -102,6 +111,14 @@
               <p class="stat-value" id="dash-inventory-val" style="margin:0; font-size: 52px;">$0</p>
             </div>
           </div>
+
+          <!-- LOW STOCK ALERTS -->
+          <div class="glass-panel" style="grid-column: span 3; border-top: 2px solid #ef4444;">
+             <h3 style="margin-bottom:15px; color:#ef4444;">🚨 Alertas de Reposición Urgente (Stock Bajo)</h3>
+             <div id="dash-low-stock-list" style="display:flex; flex-wrap:wrap; gap:12px;">
+                <p style="color:var(--text-muted);">Calculando proyecciones de stock...</p>
+             </div>
+          </div>
         </div>
       </section>
 
@@ -173,9 +190,18 @@
             <h2>Punto de Venta</h2>
             <p>Toca las tarjetas de los productos para armar el ticket y descontar del inventario.</p>
           </div>
-          <div style="text-align:right;">
-            <label style="font-size:12px; font-weight:bold; color:var(--primary-color); display:block; margin-bottom:5px;">Fecha del Ticket / Parte Diaria:</label>
-            <input type="date" id="pos-sale-date" style="padding:10px; font-size:16px; border-radius:8px; border:2px solid var(--border-color); background:rgba(255,255,255,0.05); color:white; outline:none;">
+          <div style="display:flex; gap:12px; align-items:flex-end;">
+             <div>
+                <label style="font-size:12px; font-weight:bold; color:var(--primary-color); display:block; margin-bottom:5px;">📅 Fecha Ticket:</label>
+                <input type="date" id="pos-sale-date" style="padding:10px; font-size:16px; border-radius:8px; border:2px solid var(--border-color); background:rgba(255,255,255,0.05); color:white; outline:none;">
+             </div>
+             <div>
+                <label style="font-size:12px; font-weight:bold; color:var(--primary-color); display:block; margin-bottom:5px;">☀️/🌙 Turno:</label>
+                <select id="pos-sale-shift" style="padding:10px; font-size:16px; border-radius:8px; border:2px solid var(--border-color); background:rgba(255,255,255,0.05); color:white; outline:none; height:43px;">
+                   <option value="Día">☀️ Diurno</option>
+                   <option value="Noche">🌙 Nocturno</option>
+                </select>
+             </div>
           </div>
         </header>
 
@@ -229,10 +255,11 @@
             <table class="data-table" style="margin-top:0;">
               <thead>
                 <tr>
-                  <th>Fecha/Hora del Ticket</th>
-                  <th>N° Ticket / Referencia</th>
-                  <th>Detalle de Productos Vendidos</th>
-                  <th style="text-align:center;">Acción Crítica Administrativa</th>
+                  <th>📅 Fecha/Hora</th>
+                  <th>N° Ticket</th>
+                  <th>📦 Detalle de Productos</th>
+                  <th style="text-align:right;">Monto Total ($)</th>
+                  <th style="text-align:center;">Acción Administrativa</th>
                 </tr>
               </thead>
               <tbody id="history-tbody">
@@ -282,7 +309,33 @@
                 <input type="number" id="mov-qty" min="0.1" step="0.1" value="1">
               </div>
             </div>
-            <button class="btn btn-primary" id="btn-save-movement" style="margin-top:10px;">Registrar Movimiento</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button class="btn btn-primary" id="btn-save-movement" style="flex:1;">Registrar Movimiento Simple</button>
+              <button class="btn btn-secondary" id="btn-open-production" style="flex:1; border-color:#8b5cf6; color:#a78bfa;">🔨 Registrar Elaboración (Producción)</button>
+            </div>
+          </div>
+
+          <!-- Production Modal / Overlay -->
+          <div id="production-modal" class="modal hidden">
+            <div class="modal-content glass-panel" style="max-width:500px;">
+               <h3 style="color:#a78bfa;">🔨 Nueva Elaboración Interna</h3>
+               <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Convierte materia prima en productos listos según su receta.</p>
+               
+               <label>¿Qué vas a fabricar/preparar?</label>
+               <select id="prod-item-id" style="margin-bottom:15px; background:rgba(0,0,0,0.3); border:1px solid #8b5cf6;"></select>
+               
+               <label>Cantidad Resultante (Unidades/Gr)</label>
+               <input type="number" id="prod-qty" placeholder="Ej: 100" style="font-size:20px; font-weight:bold; color:#a78bfa; background:rgba(0,0,0,0.3); border:1px solid #8b5cf6;">
+               
+               <div id="prod-recipe-preview" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px; text-align:left; border:1px dashed rgba(255,255,255,0.1);">
+                  <p style="color:var(--text-muted);">Elegí un producto para ver qué insumos descontará...</p>
+               </div>
+               
+               <div class="modal-actions">
+                 <button class="btn btn-secondary" id="btn-close-production">Cancelar</button>
+                 <button class="btn btn-primary" id="btn-confirm-production" style="background:#8b5cf6;">PROCESAR PRODUCCIÓN</button>
+               </div>
+            </div>
           </div>
 
           <div class="glass-panel w-full">
@@ -409,6 +462,10 @@
                 <input type="number" id="abm-item-cost" placeholder="Ej: 10" value="0" min="0" step="0.01" style="background:rgba(255,255,255,0.05); color:var(--primary-color); font-weight:bold;">
               </div>
             </div>
+            <div style="margin-top:10px;">
+              <label style="color:#ef4444; font-weight:bold;">Reposición Crítica (Avisar Stock Bajo en...)</label>
+              <input type="number" id="abm-item-threshold" placeholder="Stock Mínimo (Ej: 10 unidades o 500gr)" value="0" min="0" step="0.1" style="border: 1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.05);">
+            </div>
             <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">* El Costo Unitario/Gramos se calcula solo al ingresar el precio del bulto.</p>
             
             <button class="btn btn-secondary w-full" id="btn-save-item" style="margin-top:10px;">Guardar Insumo</button>
@@ -437,6 +494,17 @@
               </div>
             </div>
 
+            <div style="margin-top:10px; display:flex; gap:15px;">
+              <div style="flex:2;">
+                <label>Link de la Foto del Producto (URL de Supabase Storage)</label>
+                <input type="text" id="abm-recipe-image" placeholder="Ej: https://.../productos/foto.jpg" style="background:rgba(255,255,255,0.05); color:var(--primary-color);">
+              </div>
+              <div style="flex:1;">
+                <label>Zoom de Imagen (Ej: 1.5)</label>
+                <input type="number" id="abm-recipe-zoom" step="0.1" value="1" style="background:rgba(255,255,255,0.05); color:var(--primary-color);">
+              </div>
+            </div>
+
             <div style="display:flex; gap:15px; margin-top:10px;">
               <div style="flex:1;">
                 <label>Rinde (Gramos o Cantidad)</label>
@@ -450,7 +518,10 @@
                   <option value="cc">Centímetros Cúbicos (cc)</option>
                 </select>
               </div>
-              <div style="flex:2;"></div>
+              <div style="flex:2;">
+                 <label style="color:#ef4444; font-weight:bold;">Monitor de Stock (Umbral de Alerta)</label>
+                 <input type="number" id="abm-recipe-threshold" placeholder="Ej: 10 finalizadas" value="0" min="0" step="0.1" style="border: 1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.05);">
+              </div>
             </div>
 
             <div style="margin-top:15px; display:flex; align-items:center;">
@@ -493,6 +564,302 @@
           </div>
         </div>
       </section>
+
+      <!-- Analytics & Projections View -->
+      <section id="view-analytics" class="view hidden">
+        <header>
+          <h2>📊 Análisis de Evolución e Inflación</h2>
+          <p>Mide cómo impactan los aumentos de tus proveedores en el CMV total del negocio.</p>
+        </header>
+
+        <div class="cards-grid">
+          <!-- Selector y Gráfico -->
+          <div class="glass-panel" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+              <h3>📈 Curva Histórica de Costos</h3>
+              <select id="analytics-item-selector" style="width:250px; margin-bottom:0;">
+                <option value="">Seleccioná un insumo...</option>
+              </select>
+            </div>
+            <div style="height:350px; position:relative;">
+              <canvas id="priceChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Impacto Proyectado -->
+          <div class="glass-panel" style="grid-column: span 1;">
+            <h3>🛡️ Simulador de Inflación</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">¿Qué pasa si el insumo seleccionado sube de precio hoy?</p>
+            
+            <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:12px; border:1px solid var(--panel-border);">
+              <label>Porcentaje de Aumento (%)</label>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <input type="range" id="sim-pct" min="0" max="100" value="0" style="flex:1; margin-bottom:0;">
+                <span id="sim-pct-val" style="font-size:24px; font-weight:bold; color:var(--primary-color);">0%</span>
+              </div>
+              
+              <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">
+                 <p style="font-size:13px; color:var(--text-muted);">Impacto Estimado en Rentabilidad:</p>
+                 <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                   <div>
+                     <p style="font-size:11px; margin-top:5px; color:#ef4444;">Nuevo CMV Teórico</p>
+                     <h2 id="sim-new-cmv" style="font-size:28px; color:#ef4444; margin:0;">$0</h2>
+                   </div>
+                   <div style="text-align:right;">
+                     <p style="font-size:11px; color:#f59e0b;">Puntos de Margen Perdidos</p>
+                     <h2 id="sim-margin-loss" style="font-size:36px; color:#f59e0b; margin:0;">0%</h2>
+                   </div>
+                 </div>
+              </div>
+            </div>
+            
+            <div id="sim-affected-products" style="margin-top:15px; font-size:12px; color:var(--text-muted);">
+               <!-- Affected products will list here -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Smart Procurement Explorer -->
+      <section id="view-procurement" class="view hidden">
+        <header style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>🛒 Planificador Inteligente de Compras</h2>
+            <p>Anticipate a los quiebres de stock analizando tu ritmo de ventas real.</p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+             <label style="font-size:12px; color:var(--text-muted);">Comprar para próximos:</label>
+             <select id="proc-buffer-days" style="width:120px; margin:0;">
+                <option value="3">3 días</option>
+                <option value="7" selected>7 días (1 sem)</option>
+                <option value="15">15 días</option>
+                <option value="30">30 días</option>
+             </select>
+             <button class="btn btn-primary" id="btn-calc-procurement">⚡ Generar Lista</button>
+          </div>
+        </header>
+
+        <div class="glass-panel w-full" style="margin-top:20px;">
+           <table class="data-table">
+             <thead>
+               <tr>
+                 <th>Insumo / Articulo</th>
+                 <th>Stock Actual</th>
+                 <th>Consumo Diario (Prom)</th>
+                 <th>Autonomía (Días)</th>
+                 <th style="color:#f59e0b;">Sugerencia de Compra</th>
+                 <th>Acción</th>
+               </tr>
+             </thead>
+             <tbody id="proc-list-tbody">
+               <tr><td colspan="6" style="text-align:center; padding:40px; color:var(--text-muted);">Hacé click en "Generar Lista" para analizar ventas y stock...</td></tr>
+             </tbody>
+           </table>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+           <button class="btn btn-secondary" id="btn-share-whatsapp" style="padding:12px 25px; border-color:#25d366; color:#25d366; font-weight:bold;">
+              <span style="font-size:18px; margin-right:8px;">📱</span> Enviar Lista por WhatsApp
+           </button>
+        </div>
+      </section>
+
+      <!-- Z-Report & Finance View -->
+      <section id="view-zreport" class="view hidden">
+        <header style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>💰 Reporte Z y Control de Gestión</h2>
+            <p>Cruza tu facturación manual con el costo de insumos real.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+             <input type="date" id="z-report-date" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white;">
+             <select id="z-report-shift" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:130px;">
+                <option value="Día">☀️ Diurno</option>
+                <option value="Noche">🌙 Nocturno</option>
+                <option value="Todo">📊 Todo el Día</option>
+             </select>
+             <button class="btn btn-primary" id="btn-load-z-data">🚀 Analizar Turno</button>
+             <button class="btn btn-secondary" id="btn-open-z-bulk" style="border-color:#8b5cf6; color:#8b5cf6;">📁 Carga Masiva Mensual</button>
+          </div>
+        </header>
+
+        <div class="cards-grid">
+           <!-- Manual Entry Panel -->
+           <div class="glass-panel" style="grid-column: span 1; border-left: 5px solid var(--primary-color);">
+              <h3 style="color:var(--primary-color);">1. Carga Manual de Caja</h3>
+              <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Ingresá el cierre físico de este turno.</p>
+              
+              <div style="font-size:12px; margin-bottom:5px;">Total Turno ($)</div>
+              <input type="number" id="z-actual-sales" placeholder="Ej: 80000" style="font-size:32px; font-weight:bold; height:60px; text-align:center; color:white; border-color:var(--primary-color);">
+              
+              <button class="btn btn-primary w-full" id="btn-save-z-report" style="margin-top:15px; height:50px; font-size:16px;">💾 GUARDAR CIERRE Z</button>
+           </div>
+
+           <!-- Real-time Comparison -->
+            <div class="glass-panel flex-column" style="grid-column: span 2; gap:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                   <div>
+                      <h3 style="margin:0;">2. Côtejo vs Mercadería (CMV)</h3>
+                      <p style="font-size:12px; color:var(--text-muted);">Cifras teóricas basadas en la carga de tickets del sistema.</p>
+                   </div>
+                   <div id="z-status-badge"></div>
+                </div>
+
+              <div id="z-diff-banner" style="margin-top:15px; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:16px;">
+                 🚀 ANALIZANDO DESFASES...
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:20px;">
+                 <!-- Stat Cards -->
+                 <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
+                    <div style="background:rgba(59,130,246,0.1); padding:15px; border-radius:12px; border:1px solid rgba(59,130,246,0.2); text-align:center;">
+                       <p style="font-size:11px; color:var(--text-muted); margin-bottom:5px;">💰 Venta Bruta</p>
+                       <h3 id="z-system-sales" style="font-size:24px; color:#60a5fa;">$0</h3>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.1); padding:15px; border-radius:12px; border:1px solid rgba(239,68,68,0.2); text-align:center;">
+                       <p style="font-size:11px; color:#ef4444; margin-bottom:5px;">🥩 Costo (CMV)</p>
+                       <h3 id="z-system-cmv" style="font-size:24px; color:#ef4444;">$0</h3>
+                    </div>
+                    <div style="background:rgba(245,158,11,0.1); padding:15px; border-radius:12px; border:1px solid rgba(245,158,11,0.2); text-align:center;">
+                       <p style="font-size:11px; color:#f59e0b; margin-bottom:5px;">📊 CMV %</p>
+                       <h3 id="z-system-cmv-perc" style="font-size:24px; color:#f59e0b;">0%</h3>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.1); padding:15px; border-radius:12px; border:1px solid rgba(16,185,129,0.2); text-align:center;">
+                       <p style="font-size:11px; color:#10b981; margin-bottom:5px;">💎 Margen Ganancia</p>
+                       <h3 id="z-system-margin" style="font-size:24px; color:#10b981;">0%</h3>
+                    </div>
+                 </div>
+
+                 <!-- Doughnut Chart Container -->
+                 <div style="height:180px; position:relative;">
+                    <canvas id="zAnalysisChart"></canvas>
+                    <button id="btn-show-cost-debug" class="btn btn-secondary" style="position:absolute; bottom:-10px; right:0; font-size:10px; padding:4px 8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3);">🔍 Ver Detalle de Costos</button>
+                 </div>
+              </div>
+
+              <!-- Compact Cost Debug Panel (Initially Hidden) -->
+              <div id="cost-debug-panel" class="glass-panel hidden" style="margin-top:20px; border:1px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.02);">
+                 <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h4 style="color:#ef4444; margin:0; font-size:13px;">📝 Auditoría de Costos del Turno</h4>
+                    <button class="btn" onclick="document.getElementById('cost-debug-panel').classList.add('hidden')" style="padding:0; color:var(--text-muted);">✕</button>
+                 </header>
+                 <table style="width:100%; font-size:11px; color:var(--text-main); border-collapse: collapse;">
+                    <thead>
+                       <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-muted);">
+                          <th style="text-align:left; padding:5px;">Producto</th>
+                          <th style="text-align:center; padding:5px;">Cant.</th>
+                          <th style="text-align:right; padding:5px;">Costo Un.</th>
+                          <th style="text-align:right; padding:5px;">Subtotal CMV</th>
+                       </tr>
+                    </thead>
+                    <tbody id="cost-debug-tbody"></tbody>
+                 </table>
+              </div>
+
+              <div id="z-diff-box" style="padding:10px; border-radius:8px; text-align:center; font-weight:bold; font-size:14px; display:none;">
+                <!-- Dfference label -->
+              </div>
+           </div>
+
+           <!-- Month over Month (MoM) Chart -->
+           <div class="glass-panel" style="grid-column: span 2;">
+              <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                 <h3>📈 Salud del Negocio (Mensual)</h3>
+                 <div id="mom-insights" style="font-size:13px; font-weight:bold; background:rgba(187,147,92,0.1); color:#bb935c; padding:8px 15px; border-radius:20px; border:1px solid #bb935c;">
+                    Cargando...
+                 </div>
+              </header>
+              <div style="height:320px;">
+                 <canvas id="growthChart"></canvas>
+              </div>
+           </div>
+
+           <!-- PROJECTION CARD -->
+           <div class="glass-panel flex-column" style="grid-column: span 1; justify-content:center; border-right: 5px solid #10b981; background: linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(0,0,0,0) 100%);">
+              <p style="font-size:13px; color:#10b981; font-weight:bold; margin-bottom:10px;">📉 PROYECCIÓN A FIN DE MES</p>
+              <h1 id="z-projection-value" style="font-size:42px; color:#10b981; margin:0;">$0</h1>
+              <div id="z-projection-detail" style="font-size:13px; color:var(--text-muted); margin-top:15px; line-height:1.6;">
+                 Analizando ritmo de facturación actual...
+              </div>
+              <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.05);">
+                 <p style="font-size:11px; text-transform:uppercase; color:var(--text-muted);">Crecimiento Proyectado vs Mes Anterior</p>
+                 <h3 id="z-projection-growth" style="font-size:20px;">0%</h3>
+              </div>
+           </div>
+        </div>
+
+        <div class="cards-grid" style="margin-top:20px;">
+           <div class="glass-panel" style="grid-column: span 1;">
+              <h3>🏆 Mejores Días (Venta Prom.)</h3>
+              <div id="z-dow-list" style="margin-top:10px;">
+                 <p style="color:var(--text-muted);">Cargando estadísticas semanales...</p>
+              </div>
+           </div>
+           <div class="glass-panel" style="grid-column: span 2;">
+              <h3>📜 Historial de Cierres (Turnos)</h3>
+              <div style="overflow-y:auto; max-height:250px;">
+                <table class="data-table" style="font-size:13px;">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Turno</th>
+                      <th>Caja Real</th>
+                      <th>Dif.</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="z-history-tbody">
+                    <!-- History here -->
+                  </tbody>
+                </table>
+              </div>
+           </div>
+        </div>
+
+        <!-- Tips Panel -->
+        <div class="glass-panel w-full" style="margin-top:20px; border-top: 4px solid #f59e0b;">
+           <h3 style="color:#f59e0b;">💡 Consejos de Gestión Inteligente</h3>
+           <div id="z-ai-tips" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:20px; margin-top:15px;">
+              <div style="color:var(--text-muted); font-size:14px; font-style:italic;">Analizando tus números para darte consejos...</div>
+           </div>
+        </div>
+      </section>
+      <!-- MODAL: Z Bulk Loader -->
+      <div id="z-bulk-modal" class="modal hidden">
+        <div class="modal-content glass-panel" style="width:900px; max-width:95vw; max-height:90vh; overflow:hidden; display:flex; flex-direction:column;">
+          <header style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px; margin-bottom:15px;">
+            <div>
+              <h2 style="color:#8b5cf6;">🚀 Planilla de Carga Masiva Mensual</h2>
+              <p style="font-size:12px; color:var(--text-muted);">Cargá todo el mes de una forma fácil y rápida.</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="month" id="z-bulk-month" style="padding:10px; border-radius:8px; border:1px solid var(--border-color); background:rgba(255,255,255,0.05); color:white;">
+              <button class="btn btn-primary" id="btn-load-z-bulk-sheet" style="background:#8b5cf6;">📝 Generar Planilla</button>
+              <button class="btn btn-secondary" id="btn-close-z-bulk">Cerrar</button>
+            </div>
+          </header>
+
+          <div style="flex:1; overflow-y:auto; border-radius:12px; border: 1px solid rgba(255,255,255,0.05);">
+            <table class="data-table" style="margin:0;">
+              <thead style="position:sticky; top:0; z-index:5; background:var(--panel-bg);">
+                 <tr>
+                    <th style="width:100px;">Día</th>
+                    <th>☀️ Turno Día (Venta Real)</th>
+                    <th>🌙 Turno Noche (Venta Real)</th>
+                    <th style="width:150px;">Tickets Sist. (Ref.)</th>
+                 </tr>
+              </thead>
+              <tbody id="z-bulk-tbody">
+                 <tr><td colspan="4" style="text-align:center; padding:50px; color:var(--text-muted);">Elegí un mes y generá la planilla para empezar...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:flex-end;">
+            <button class="btn btn-primary" id="btn-save-z-bulk" style="padding:12px 35px; font-size:16px;">💎 GUARDAR TODA LA PLANILLA</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -602,6 +969,7 @@
     const abmItemBulkSize = document.getElementById('abm-item-bulk-size');
     const abmItemBulkCost = document.getElementById('abm-item-bulk-cost');
     const abmItemCost = document.getElementById('abm-item-cost');
+    const abmItemThreshold = document.getElementById('abm-item-threshold');
 
     // Auto-Calculator Bindings
     abmItemBulkCost.addEventListener('input', () => {
@@ -626,10 +994,13 @@
     const abmRecipeName = document.getElementById('abm-recipe-name');
     const abmRecipePrice = document.getElementById('abm-recipe-price');
     const abmRecipeCategory = document.getElementById('abm-recipe-category');
+    const abmRecipeImage = document.getElementById('abm-recipe-image');
+    const abmRecipeZoom = document.getElementById('abm-recipe-zoom');
     const abmRecipeIsSale = document.getElementById('abm-recipe-is-sale');
     const abmRecipeYield = document.getElementById('abm-recipe-yield');
     const abmRecipeUnit = document.getElementById('abm-recipe-unit');
     const abmRecipeIng = document.getElementById('abm-recipe-ingredient');
+    const abmRecipeThreshold = document.getElementById('abm-recipe-threshold');
     
     if(abmRecipeYield) abmRecipeYield.addEventListener('input', () => { if(typeof renderRecipeList === 'function') renderRecipeList(); });
     if(abmRecipeUnit) abmRecipeUnit.addEventListener('change', () => { if(typeof renderRecipeList === 'function') renderRecipeList(); });
@@ -719,7 +1090,37 @@
       
       const ranking = Object.values(topProducts).sort((a,b) => b.qty - a.qty).slice(0,10);
 
-      return { totalSales, cmvTotal, invTotal, margin: totalSales - cmvTotal, ranking };
+      // Low stock alerts logic
+      const { data: currentStock } = await supabase.from('inventory').select('item_id, quantity, items(name, unit, low_stock_threshold)');
+      const lowStockAlerts = [];
+      if (currentStock) {
+        // Aggregate stock by item if it exists in multiple deposits
+        const aggregatedStock = {};
+        currentStock.forEach(s => {
+          if (!aggregatedStock[s.item_id]) aggregatedStock[s.item_id] = { name: s.items?.name, unit: s.items?.unit, threshold: s.items?.low_stock_threshold, qty: 0 };
+          aggregatedStock[s.item_id].qty += s.quantity;
+        });
+
+        Object.keys(aggregatedStock).forEach(id => {
+          const item = aggregatedStock[id];
+          if (item.threshold > 0 && item.qty <= item.threshold) {
+             lowStockAlerts.push({ id, ...item });
+          }
+        });
+      }
+
+      // Update global badge
+      const badge = document.getElementById('inventory-badge');
+      if (badge) {
+        if (lowStockAlerts.length > 0) {
+          badge.innerText = lowStockAlerts.length;
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      return { totalSales, cmvTotal, invTotal, margin: totalSales - cmvTotal, ranking, lowStockAlerts };
     }
 
     async function getDeposits() {
@@ -781,12 +1182,14 @@
 
     async function processSale(ticketNumber, items, depositId, saleDateStr) {
       try {
-        const insertPayload = { ticket_number: ticketNumber, total_amount: 0 };
-        if (saleDateStr) {
-          const dt = new Date(saleDateStr);
-          dt.setMinutes(dt.getMinutes() + dt.getTimezoneOffset());
-          insertPayload.created_at = dt.toISOString();
-        }
+        const totalAmount = items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+        const insertPayload = { 
+          ticket_number: ticketNumber, 
+          total_amount: totalAmount,
+          sale_date: saleDateStr || new Date().toISOString().split('T')[0],
+          shift: document.getElementById('pos-sale-shift').value || 'Día'
+        };
+        
         const { data: saleData, error: saleError } = await supabase.from('sales').insert(insertPayload).select().single()
         if (saleError) throw saleError;
         
@@ -795,7 +1198,8 @@
         if (itemsError) throw itemsError;
 
         const { error: rpcError } = await supabase.rpc('process_sale_and_deduct_stock', { p_sale_id: saleData.id, p_deposit_id: depositId });
-        if (rpcError) throw rpcError;
+        calculateDashboardVariables(); 
+        
         return { success: true };
       } catch (error) {
         console.error("Sale Error", error);
@@ -805,7 +1209,7 @@
 
     async function registerMovement(type, itemId, depositId, quantity, costOrNotes) {
       try {
-        const isOut = ['out_waste', 'adjustment_final', 'sale_deduction'].includes(type)
+        const isOut = ['out_waste', 'adjustment_final', 'sale_deduction', 'production_input'].includes(type)
         const invMod = isOut ? -quantity : quantity
 
         const { error: moveError } = await supabase.from('stock_movements').insert({ movement_type: type, item_id: itemId, from_deposit_id: isOut ? depositId : null, to_deposit_id: isOut ? null : depositId, quantity: quantity, notes: costOrNotes })
@@ -824,8 +1228,8 @@
       }
     }
 
-    async function saveRawMaterial(name, unit, bulkName, bulkSize, cost, category) {
-      const payload = { name, unit, type: 'raw_material', bulk_name: bulkName, bulk_size: bulkSize, cost: cost, category };
+    async function saveRawMaterial(name, unit, bulkName, bulkSize, cost, category, threshold) {
+      const payload = { name, unit, type: 'raw_material', bulk_name: bulkName, bulk_size: bulkSize, cost: cost, category, low_stock_threshold: threshold };
       let error = null;
       if (editingRawId) {
         const { error: err } = await supabase.from('items').update(payload).eq('id', editingRawId);
@@ -837,9 +1241,14 @@
       return { success: !error, error };
     }
 
-    async function saveRecipeProduct(name, ingredients, price, category, isSale, rYield, rUnit) {
+    async function saveRecipeProduct(name, ingredients, price, category, isSale, rYield, rUnit, threshold, imageUrl, imageZoom) {
       const typeStr = isSale ? 'final_product' : 'assembled';
-      const payload = { name, unit: rUnit, type: typeStr, bulk_name: 'Rendimiento', bulk_size: rYield, sale_price: price, category: category };
+      const payload = { 
+        name, unit: rUnit, type: typeStr, bulk_name: 'Rendimiento', 
+        bulk_size: rYield, sale_price: price, category: category, 
+        low_stock_threshold: threshold, image_url: imageUrl,
+        image_zoom: imageZoom
+      };
       let productId = editingRecipeId;
       let error = null;
 
@@ -891,6 +1300,7 @@
        abmItemBulk.value = item.bulk_name || '';
        abmItemBulkSize.value = item.bulk_size || 1;
        abmItemCost.value = item.cost || 0;
+       abmItemThreshold.value = item.low_stock_threshold || 0;
        
        // Trigger calculation math for editing
        const bs = item.bulk_size || 1;
@@ -929,6 +1339,9 @@
        abmRecipeIsSale.checked = item.type === 'final_product';
        abmRecipeYield.value = item.bulk_size || 1;
        abmRecipeUnit.value = item.unit || 'unidades';
+       abmRecipeThreshold.value = item.low_stock_threshold || 0;
+       abmRecipeImage.value = item.image_url || '';
+       abmRecipeZoom.value = item.image_zoom || 1;
        
        recipeFormTitle.innerText = "Editando Producto Elaborado";
        btnCancelRecipe.classList.remove('hidden');
@@ -973,6 +1386,7 @@
     function resetRawForm() {
       editingRawId = null;
       abmItemName.value = ''; abmItemCategory.value = 'General'; abmItemBulk.value = ''; abmItemBulkSize.value = '1'; abmItemBulkCost.value = ''; abmItemCost.value = '0';
+      abmItemThreshold.value = '0';
       rawFormTitle.innerText = "1. Nueva Materia Prima";
       btnCancelRaw.classList.add('hidden');
       btnSaveItem.innerText = "Guardar Insumo";
@@ -982,6 +1396,9 @@
       editingRecipeId = null;
       abmRecipeName.value = ''; abmRecipePrice.value = '0'; abmRecipeCategory.value = 'Hamburguesas'; abmRecipeIsSale.checked = true;
       abmRecipeYield.value = '1'; abmRecipeUnit.value = 'unidades';
+      abmRecipeThreshold.value = '0';
+      abmRecipeImage.value = '';
+      abmRecipeZoom.value = '1';
       currentRecipeItems = [];
       renderRecipeList();
       recipeFormTitle.innerText = "2. Nuevo Producto Elaborado";
@@ -998,34 +1415,31 @@
       const historyTbody = document.getElementById('history-tbody');
       
       let query = supabase.from('sales')
-        .select('id, ticket_number, created_at, sale_items(quantity, items(name))')
+        .select('*, sale_items(quantity, items(name, sale_price))')
         .order('created_at', { ascending: false });
         
-      if (fromStr) {
-        const dFrom = new Date(fromStr);
-        dFrom.setMinutes(dFrom.getMinutes() + dFrom.getTimezoneOffset());
-        query = query.gte('created_at', dFrom.toISOString());
-      }
-      if (toStr) {
-        const dTo = new Date(toStr);
-        dTo.setMinutes(dTo.getMinutes() + dTo.getTimezoneOffset());
-        dTo.setDate(dTo.getDate() + 1); // add 1 day to cover until close hours
-        query = query.lt('created_at', dTo.toISOString());
-      }
-      const { data: sales, error } = await query;
+      if (fromStr) query = query.gte('sale_date', fromStr);
+      if (toStr) query = query.lte('sale_date', toStr);
+      
+      const { data: sales } = await query;
       
       if (!sales || sales.length === 0) {
-        historyTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:var(--text-muted);">No hay partes de venta registrados en las fechas seleccionadas.</td></tr>';
+        historyTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay ventas en estas fechas.</td></tr>';
       } else {
         const isAdmin = localStorage.getItem('role') === 'admin';
         historyTbody.innerHTML = sales.map(s => {
-          const dateStr = new Date(s.created_at).toLocaleString('es-AR', {dateStyle: 'medium', timeStyle: 'short'});
-          const detailStr = s.sale_items.map(si => `<span style="color:var(--text-main); font-weight:bold; font-size:14px;">${si.quantity}x</span> ${si.items?.name || 'Item eliminado'}`).join('<br>');
-          const delBtn = isAdmin ? `<button class="btn" style="padding:6px 12px; font-size:12px; color:red; border:1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.05);" onclick="window.deleteSaleTicket('${s.id}')">🗑️ Borrar y Devolver Stock</button>` : `<span style="font-size:11px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px;">Solo Admin</span>`;
-          return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <td style="color:var(--primary-color); font-weight:bold;">${dateStr}</td>
-            <td style="font-family:monospace; font-size:15px; color:#a78bfa;">${s.ticket_number}</td>
-            <td style="font-size:13px; line-height:1.6;">${detailStr}</td>
+          let displayTotal = parseFloat(s.total_amount) || 0;
+          if (displayTotal <= 0) {
+             s.sale_items.forEach(si => { displayTotal += (si.quantity * (parseFloat(si.items?.sale_price) || 0)); });
+          }
+          const detailStr = s.sale_items.map(si => `${si.quantity}x ${si.items?.name || '?'}`).join(', ');
+          const delBtn = isAdmin ? `<button class="btn" style="padding:6px 12px; font-size:12px; color:red; border:1px solid rgba(239, 68, 68, 0.4);" onclick="window.deleteSaleTicket('${s.id}')">🗑️ Borrar</button>` : '';
+          
+          return `<tr>
+            <td style="font-size:12px;">${new Date(s.created_at).toLocaleString('es-AR')}</td>
+            <td style="font-weight:bold;">${s.ticket_number}</td>
+            <td style="font-size:12px; color:var(--text-muted);">${detailStr}</td>
+            <td style="text-align:right; font-weight:bold; color:var(--primary-color);">${formatCurrency(displayTotal)}</td>
             <td style="text-align:center;">${delBtn}</td>
           </tr>`;
         }).join('');
@@ -1078,6 +1492,25 @@
           `).join('');
         }
       }
+
+      const lowStockEl = document.getElementById('dash-low-stock-list');
+      if (lowStockEl) {
+        if (metrics.lowStockAlerts.length === 0) {
+          lowStockEl.innerHTML = '<p style="color:#10b981; font-weight:600; font-size:14px; background:rgba(16,185,129,0.1); padding:10px 20px; border-radius:10px; width:100%;">✅ Todos los stocks están por encima del mínimo. No hay alertas.</p>';
+        } else {
+          lowStockEl.innerHTML = metrics.lowStockAlerts.map(a => `
+             <div class="glass-panel" style="flex:1; min-width:230px; padding:15px; border-left:4px solid #ef4444; background:rgba(239, 68, 68, 0.05);">
+               <div style="font-size:14px; font-weight:black; color:#ef4444; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px;">⚠️ Reponer</div>
+               <div style="font-size:16px; font-weight:bold; color:white;">${a.name}</div>
+               <div style="font-size:13px; color:var(--text-muted); margin-top:5px;">
+                 Tenes: <span style="color:#ef4444; font-weight:bold;">${a.qty} ${a.unit}</span><br>
+                 Minimo: <span style="color:var(--text-main);">${a.threshold} ${a.unit}</span>
+               </div>
+             </div>
+          `).join('');
+        }
+      }
+
       showLoading(false);
     }
 
@@ -1093,10 +1526,29 @@
       }
 
       const inv = await getInventory();
+      const { data: rawItems } = await supabase.from('items').select('id, low_stock_threshold');
+      const thresholdMap = {};
+      if (rawItems) rawItems.forEach(i => thresholdMap[i.id] = i.low_stock_threshold);
+
       if (inv.length === 0) {
         invTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay stock registrado</td></tr>';
       } else {
-        invTbody.innerHTML = inv.map(i => `<tr><td>${i.deposits?.name || '-'}</td><td>${i.items?.name || '-'}</td><td style="font-weight:bold;">${i.quantity}</td><td>${i.items?.unit || '-'}</td></tr>`).join('');
+        // Aggregate stock to check thresholds
+        const totalStockByItem = {};
+        inv.forEach(i => {
+           if (!totalStockByItem[i.item_id]) totalStockByItem[i.item_id] = 0;
+           totalStockByItem[i.item_id] += i.quantity;
+        });
+
+        invTbody.innerHTML = inv.map(i => {
+          const isLow = thresholdMap[i.item_id] && totalStockByItem[i.item_id] <= thresholdMap[i.item_id];
+          return `<tr class="${isLow ? 'row-low-stock' : ''}">
+            <td>${i.deposits?.name || '-'}</td>
+            <td>${i.items?.name || '-'} ${isLow ? '<span style="color:#ef4444; font-size:10px; font-weight:bold; margin-left:5px;">(Stock Bajo)</span>' : ''}</td>
+            <td style="font-weight:bold;">${i.quantity}</td>
+            <td>${i.items?.unit || '-'}</td>
+          </tr>`;
+        }).join('');
       }
       
       const kardexTbody = document.getElementById('kardex-tbody');
@@ -1116,6 +1568,8 @@
             else if (m.movement_type === 'adjustment_final') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📉 Ajuste Stock Final</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
             else if (m.movement_type === 'sale_deduction') { typeBadge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🍔 Consumo Venta (Ticket)</span>'; valColor = '#f59e0b'; formattedQty = '-' + m.quantity; }
             else if (m.movement_type === 'system_rollback') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">⏪ Reversión Venta Admin</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'production_yield') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔨 Preparación Finalizada</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'production_input') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🥩 Consumo Elaboración</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
             else typeBadge = `<span style="color:var(--text-muted); font-size:12px;">${m.movement_type}</span>`;
             
             return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -1135,7 +1589,7 @@
     async function loadPOSView() {
       showLoading(true);
       posItemsData = await getPOSItems();
-      renderPOSGrid(null);
+      renderPOSGrid('Hamburguesas');
       showLoading(false);
     }
     
@@ -1143,19 +1597,37 @@
       renderPOSGrid(cat);
     };
 
-    function renderPOSGrid(cat) {
+    async function renderPOSGrid(cat) {
       const cats = [...new Set(posItemsData.map(i => i.category || 'General'))];
-      posCategoryFilters.innerHTML = `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; border-color:var(--primary-color);" onclick="window.filterPOS(null)">Todas</button>` + 
-        cats.map(c => `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="window.filterPOS('${c}')">${c}</button>`).join('');
+      posCategoryFilters.innerHTML = `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; ${!cat ? 'border-color:var(--primary-color);' : ''}" onclick="window.filterPOS(null)">Todas</button>` + 
+        cats.map(c => `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; ${cat === c ? 'border-color:var(--primary-color);' : ''}" onclick="window.filterPOS('${c}')">${c}</button>`).join('');
 
       const filtered = cat ? posItemsData.filter(i => (i.category || 'General') === cat) : posItemsData;
 
-      posProductsGrid.innerHTML = filtered.map(i => `
-        <div class="glass-panel stat-card" style="cursor:pointer; text-align:center; padding:15px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="window.addPosItem('${i.id}', '${i.name}')">
-          <h4 style="margin:0; font-size:18px; color:var(--text-main);">${i.name}</h4>
-          <p style="color:var(--text-muted); font-size:14px; margin-top:8px;">${formatCurrency(i.sale_price || 0)}</p>
-        </div>
-      `).join('');
+      const { data: invStock } = await supabase.from('inventory').select('item_id, quantity');
+      const stockMap = {};
+      if(invStock) invStock.forEach(s => {
+          if(!stockMap[s.item_id]) stockMap[s.item_id] = 0;
+          stockMap[s.item_id] += s.quantity;
+      });
+
+      posProductsGrid.innerHTML = filtered.map(i => {
+        const isLow = i.low_stock_threshold > 0 && (stockMap[i.id] || 0) <= i.low_stock_threshold;
+        const imgZoom = i.image_zoom || 1;
+        const imgHtml = i.image_url ? 
+          `<div style="width:100%; height:150px; border-radius:12px; margin-bottom:10px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+             <img src="${i.image_url}" style="width:100%; height:100%; object-fit:contain; transform: scale(${imgZoom}); transition: transform 0.3s; pointer-events:none;">
+           </div>` : 
+          `<div style="width:100%; height:150px; background:rgba(255,255,255,0.05); border-radius:12px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; font-size:40px;">🍔</div>`;
+          
+        return `
+          <div class="glass-panel stat-card ${isLow ? 'pos-card-low-stock' : ''}" style="cursor:pointer; text-align:center; padding:12px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="window.addPosItem('${i.id}', '${i.name}')">
+            ${imgHtml}
+            <h4 style="margin:0; font-size:16px; color:var(--text-main);">${i.name}</h4>
+            <p style="color:var(--text-muted); font-size:13px; margin-top:5px;">${formatCurrency(i.sale_price || 0)}</p>
+          </div>
+        `;
+      }).join('');
     }
 
     window.filterRaws = (cat) => {
@@ -1466,6 +1938,725 @@
     }
 
     // --- Init Application ---
+    let priceChart = null;
+
+    async function loadAnalyticsView() {
+      showLoading(true);
+      const { data: rawMaterials } = await supabase.from('items').select('id, name, unit, cost').eq('type', 'raw_material').order('name');
+      const selector = document.getElementById('analytics-item-selector');
+      
+      if (rawMaterials && selector.options.length <= 1) {
+        selector.innerHTML = '<option value="">Seleccioná un insumo...</option>' + 
+          rawMaterials.map(m => `<option value="${m.id}" data-cost="${m.cost}">${m.name} (${m.unit})</option>`).join('');
+      }
+
+      selector.onchange = async () => {
+        const itemId = selector.value;
+        if (!itemId) return;
+        
+        const { data: history } = await supabase.from('cost_history').select('*').eq('item_id', itemId).order('created_at', { ascending: true });
+        renderPriceChart(history);
+        updateInflationSimulation();
+      };
+
+      const simPct = document.getElementById('sim-pct');
+      simPct.oninput = () => {
+        document.getElementById('sim-pct-val').innerText = simPct.value + '%';
+        updateInflationSimulation();
+      };
+
+      showLoading(false);
+    }
+
+    function renderPriceChart(history) {
+      const ctx = document.getElementById('priceChart').getContext('2d');
+      if (priceChart) priceChart.destroy();
+
+      if (!history || history.length === 0) {
+        // Fallback if no history yet
+        return;
+      }
+
+      const labels = history.map(h => new Date(h.created_at).toLocaleDateString());
+      const data = history.map(h => h.cost);
+
+      priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Costo Histórico ($)',
+            data: data,
+            borderColor: '#bb935c',
+            backgroundColor: 'rgba(187, 147, 92, 0.1)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 5,
+            pointBackgroundColor: '#bb935c'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+    }
+
+    async function updateInflationSimulation() {
+      const selector = document.getElementById('analytics-item-selector');
+      const itemId = selector.value;
+      if (!itemId) return;
+
+      const pct = parseFloat(document.getElementById('sim-pct').value) / 100;
+      const selectedOption = selector.options[selector.selectedIndex];
+      const currentCost = parseFloat(selectedOption.getAttribute('data-cost')) || 0;
+      const newCost = currentCost * (1 + pct);
+
+      // --- Calculate Impact on CMV ---
+      // We'll take last 30 days of sales
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: salesData } = await supabase.from('sale_items').select('quantity, product_id, items(name, cost)').gt('created_at', thirtyDaysAgo.toISOString());
+      const { data: allItems } = await supabase.from('items').select('*');
+      const { data: recipeData } = await supabase.from('recipes').select('*');
+
+      const allItemsMap = {};
+      allItems.forEach(i => allItemsMap[i.id] = i);
+
+      const recipesMap = {};
+      recipeData.forEach(r => {
+        if(!recipesMap[r.product_id]) recipesMap[r.product_id] = [];
+        recipesMap[r.product_id].push(r);
+      });
+
+      function getRecursiveUsage(productId, targetId, visited = new Set()) {
+        if (productId === targetId) return 1;
+        if (visited.has(productId)) return 0;
+        visited.add(productId);
+
+        const item = allItemsMap[productId];
+        const recipe = recipesMap[productId] || [];
+        if (recipe.length === 0) return 0;
+
+        let total = 0;
+        const yieldSize = parseFloat(item?.bulk_size) || 1;
+        for (const ing of recipe) {
+          const subUsage = getRecursiveUsage(ing.ingredient_id, targetId, new Set(visited));
+          total += (parseFloat(ing.quantity) / yieldSize) * subUsage;
+        }
+        return total;
+      }
+
+      let projectedTotalCmv = 0;
+      let affectedProducts = new Set();
+
+      if (salesData) {
+        salesData.forEach(sale => {
+          const usage = getRecursiveUsage(sale.product_id, itemId);
+          if (usage > 0) {
+            affectedProducts.add(sale.items?.name || allItemsMap[sale.product_id]?.name);
+            const delta = (usage * (newCost - currentCost)) * sale.quantity;
+            projectedTotalCmv += delta;
+          }
+        });
+      }
+
+      // Get current dashboard totals for context
+      const metrics = await calculateDashboardVariables(thirtyDaysAgo.toISOString());
+      const totalSales = metrics.totalSales || 1; // avoid div by zero
+      const baseCmv = metrics.cmvTotal;
+      const finalCmv = baseCmv + projectedTotalCmv;
+      
+      const baseCmvPct = (baseCmv / totalSales) * 100;
+      const newCmvPct = (finalCmv / totalSales) * 100;
+      const marginLoss = newCmvPct - baseCmvPct;
+
+      document.getElementById('sim-new-cmv').innerText = formatCurrency(finalCmv);
+      document.getElementById('sim-margin-loss').innerText = (marginLoss > 0 ? '-' : '') + marginLoss.toFixed(2) + '%';
+      
+      const productList = Array.from(affectedProducts);
+      document.getElementById('sim-affected-products').innerHTML = productList.length > 0 ? 
+        '<strong>Productos afectados:</strong><br>' + productList.join(', ') : 
+        '<span style="color:#10b981;">Este insumo no parece afectar a ningún producto vendido recientemente.</span>';
+    }
+
+    async function loadProcurementView() {
+      // Just resets view if needed, the core logic is in the button click
+    }
+
+    const btnCalcProc = document.getElementById('btn-calc-procurement');
+    const procTbody = document.getElementById('proc-list-tbody');
+    const btnWhatsApp = document.getElementById('btn-share-whatsapp');
+
+    if (btnCalcProc) {
+      btnCalcProc.addEventListener('click', async () => {
+        showLoading(true);
+        const bufferDays = parseInt(document.getElementById('proc-buffer-days').value) || 7;
+        
+        // 1. Fetch data
+        const { data: rawMaterials } = await supabase.from('items').select('id, name, unit, cost').eq('type', 'raw_material').order('name');
+        const { data: inv } = await supabase.from('inventory').select('item_id, quantity');
+        const { data: recipeData } = await supabase.from('recipes').select('product_id, ingredient_id, quantity');
+        
+        const fifteenDaysAgo = new Date();
+        fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+        const { data: salesHistory } = await supabase.from('sale_items').select('product_id, quantity').gt('created_at', fifteenDaysAgo.toISOString());
+
+        // 2. Maps
+        const stockMap = {};
+        inv.forEach(i => stockMap[i.item_id] = (stockMap[i.item_id] || 0) + i.quantity);
+        
+        const consumptionMap = {}; // How much of each ingredient was consumed in 15 days
+        const itemToRecipes = {};
+        recipeData.forEach(r => {
+           if(!itemToRecipes[r.product_id]) itemToRecipes[r.product_id] = [];
+           itemToRecipes[r.product_id].push(r);
+        });
+
+        if (salesHistory) {
+          salesHistory.forEach(s => {
+            const recipe = itemToRecipes[s.product_id] || [];
+            recipe.forEach(ing => {
+              consumptionMap[ing.ingredient_id] = (consumptionMap[ing.ingredient_id] || 0) + (ing.quantity * s.quantity);
+            });
+          });
+        }
+
+        // 3. Process each Raw Material
+        procTbody.innerHTML = rawMaterials.map(m => {
+          const currentStock = stockMap[m.id] || 0;
+          const totalCons15d = consumptionMap[m.id] || 0;
+          const avgDaily = totalCons15d / 15;
+          const daysLeft = avgDaily > 0 ? (currentStock / avgDaily).toFixed(1) : '∞';
+          
+          let suggest = (avgDaily * bufferDays) - currentStock;
+          if (suggest < 0) suggest = 0;
+          
+          const rowClass = parseFloat(daysLeft) < 3 ? 'row-low-stock' : '';
+
+          return `
+            <tr class="${rowClass}">
+              <td>${m.name} (${m.unit})</td>
+              <td>${currentStock.toFixed(2)}</td>
+              <td>${avgDaily.toFixed(2)}</td>
+              <td style="font-weight:bold; color:${parseFloat(daysLeft) < 3 ? '#ef4444' : 'inherit'};">${daysLeft} días</td>
+              <td style="color:#f59e0b; font-weight:bold;">${suggest > 0 ? suggest.toFixed(2) : '-'} ${m.unit}</td>
+              <td><button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.customAlert('El consumo estimado se basa en el promedio de los últimos 15 días: ${(totalCons15d).toFixed(2)} ${m.unit} totales.')">ℹ️</button></td>
+            </tr>
+          `;
+        }).join('');
+
+        showLoading(false);
+      });
+    }
+
+    if (btnWhatsApp) {
+      btnWhatsApp.addEventListener('click', () => {
+        const rows = Array.from(procTbody.querySelectorAll('tr'));
+        let message = "*Lotta Burgers - Solicitud de Pedido Inteligente*%0A%0A";
+        message += "Necesito abastecimiento de los siguientes productos:%0A";
+        
+        let hasItems = false;
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          if (cells.length < 5) return;
+          const name = cells[0].innerText;
+          const suggest = cells[4].innerText;
+          
+          if (suggest !== '-') {
+            hasItems = true;
+            message += "• " + name + ": *" + suggest + "*%0A";
+          }
+        });
+
+        if (!hasItems) {
+           return window.customAlert("No hay sugerencias de compra. ¡Tu stock está perfecto para los días seleccionados!");
+        }
+
+        message += "%0A_Generado automáticamente por WLB Stock Control_";
+        window.open("https://wa.me/?text=" + message, "_blank");
+      });
+    }
+
+    let growthChart = null;
+    let zAnalysisChart = null;
+    let currentDaySystemData = { sales: 0, cmv: 0, count: 0 };
+
+    async function loadZReportView() {
+      const dateInp = document.getElementById('z-report-date');
+      if (!dateInp.value) dateInp.value = new Date().toISOString().split('T')[0];
+      
+      await updateMonthlyGrowthChart();
+      await analyzeSelectedDay();
+    }
+
+    const btnLoadZ = document.getElementById('btn-load-z-data');
+    if (btnLoadZ) btnLoadZ.addEventListener('click', analyzeSelectedDay);
+    
+    const btnShowCostDebug = document.getElementById('btn-show-cost-debug');
+    const costDebugPanel = document.getElementById('cost-debug-panel');
+    const costDebugTbody = document.getElementById('cost-debug-tbody');
+    if (btnShowCostDebug) btnShowCostDebug.onclick = () => costDebugPanel.classList.toggle('hidden');
+
+    async function analyzeSelectedDay() {
+      const date = document.getElementById('z-report-date').value;
+      const shift = document.getElementById('z-report-shift').value;
+      if (!date) return;
+      
+      showLoading(true);
+      
+      // Query by the New OPERATIVE DATE (sale_date)
+      let query = supabase.from('sales').select('id, total_amount, shift, created_at').eq('sale_date', date);
+      const { data: sales } = await query;
+      
+      // EXPLICIT SHIFT FILTER using the new column from DB
+      const filteredSales = (sales || []).filter(s => {
+        if (shift === 'Todo') return true;
+        return s.shift === shift; // Comparison with string 'Día' or 'Noche'
+      });
+
+      if (filteredSales.length === 0) {
+        document.getElementById('z-system-sales').innerText = "$0";
+        document.getElementById('z-system-cmv').innerText = "$0";
+        document.getElementById('z-system-margin').innerText = "0%";
+        document.getElementById('z-status-badge').innerHTML = '<span style="color:#f59e0b;font-size:11px;">⚠️ No hay tickets.</span>';
+        currentDaySystemData = { sales: 0, cmv: 0, count: 0 };
+        updateZDiff();
+        showLoading(false);
+        return;
+      }
+      document.getElementById('z-status-badge').innerHTML = `<span style="color:#10b981;font-size:11px;">✔️ OK (${filteredSales.length} tickets)</span>`;
+
+
+      const allItems = await getComputedItems();
+      const { data: saleItems } = await supabase.from('sale_items').select('sale_id, product_id, quantity')
+        .in('sale_id', filteredSales.map(s => s.id));
+
+      const itemsCostMap = {};
+      const itemsPriceMap = {};
+      const itemsNameMap = {};
+      
+      allItems.forEach(i => {
+        itemsCostMap[i.id] = parseFloat(i.cost) || 0;
+        itemsPriceMap[i.id] = parseFloat(i.sale_price) || 0;
+        itemsNameMap[i.id] = i.name;
+      });
+
+      let totalSales = 0;
+      let totalCmv = 0;
+      
+      // Calculate Total Sales: Use DB value, or RECALCULATE from products if zero
+      filteredSales.forEach(s => {
+        let val = parseFloat(s.total_amount) || 0;
+        if (val <= 0) {
+           // Fallback: search items in this sale and sum sale_price
+           const itemsInThisSale = (saleItems || []).filter(si => si.sale_id === s.id);
+           itemsInThisSale.forEach(si => {
+              val += (si.quantity * (itemsPriceMap[si.product_id] || 0));
+           });
+        }
+        totalSales += val;
+      });
+
+      (saleItems || []).forEach(si => {
+        const productCost = itemsCostMap[si.product_id] || 0;
+        totalCmv += (si.quantity * productCost);
+      });
+
+      // --- CMV DEBUG DATA GENERATION ---
+      const productsList = {};
+      (saleItems || []).forEach(si => {
+          const name = itemsNameMap[si.product_id] || 'Desconocido';
+          if (!productsList[name]) productsList[name] = { qty: 0, uCost: 0, total: 0 };
+          
+          const itemUCost = itemsCostMap[si.product_id] || 0;
+          
+          productsList[name].qty += si.quantity;
+          productsList[name].uCost = itemUCost;
+          productsList[name].total += (si.quantity * itemUCost);
+      });
+
+      let debugHtml = '';
+      Object.keys(productsList).forEach(pName => {
+          const p = productsList[pName];
+          debugHtml += `
+             <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                <td style="padding:4px;">${pName}</td>
+                <td style="text-align:center;">${p.qty}</td>
+                <td style="text-align:right;">${formatCurrency(p.uCost)}</td>
+                <td style="text-align:right; font-weight:bold; color:#ef4444;">${formatCurrency(p.total)}</td>
+             </tr>
+          `;
+      });
+      if(costDebugTbody) costDebugTbody.innerHTML = debugHtml;
+
+
+      currentDaySystemData = { sales: totalSales, cmv: totalCmv, count: filteredSales.length };
+      
+      // Force UI Update
+      document.getElementById('z-system-sales').innerText = formatCurrency(totalSales);
+      document.getElementById('z-system-cmv').innerText = formatCurrency(totalCmv);
+      
+      const cmvPct = totalSales > 0 ? (totalCmv / totalSales * 100) : 0;
+      const marginPct = totalSales > 0 ? ((totalSales - totalCmv) / totalSales * 100) : 0;
+      
+      document.getElementById('z-system-cmv-perc').innerText = cmvPct.toFixed(1) + '%';
+      document.getElementById('z-system-margin').innerText = marginPct.toFixed(1) + '%';
+
+      // --- New Z Analysis Chart (Doughnut) ---
+      const zCtx = document.getElementById('zAnalysisChart').getContext('2d');
+      if (zAnalysisChart) zAnalysisChart.destroy();
+      
+      if (totalSales > 0) {
+        zAnalysisChart = new Chart(zCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Costo (CMV)', 'Ganancia Neta'],
+            datasets: [{
+              data: [totalCmv, Math.max(0, totalSales - totalCmv)],
+              backgroundColor: ['#ef4444', '#10b981'],
+              borderWidth: 0,
+              hoverOffset: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } }
+            },
+            cutout: '70%'
+          }
+        });
+      }
+
+      
+      updateZDiff();
+      showLoading(false);
+    }
+
+    function updateZDiff() {
+      const actual = parseFloat(document.getElementById('z-actual-sales').value) || 0;
+      const system = currentDaySystemData.sales || 0;
+      const diff = actual - system;
+      const banner = document.getElementById('z-diff-banner');
+      
+      if (!banner) return;
+      
+      if (actual <= 0) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      banner.style.display = 'inline-block';
+      banner.style.margin = '0 auto 15px auto';
+      banner.style.padding = '6px 15px';
+      banner.style.fontSize = '14px';
+      banner.style.borderRadius = '50px';
+      
+      const container = banner.parentElement;
+      if(container) container.style.textAlign = 'center';
+
+      if (Math.abs(diff) < 1) {
+        banner.innerHTML = "✅ CAJA CUADRADA";
+        banner.style.background = "rgba(16,185,129,0.15)";
+        banner.style.border = "1px solid rgba(16,185,129,0.5)";
+        banner.style.color = "#10b981";
+      } else if (diff > 0) {
+        banner.innerHTML = `💰 SOBRANTE: $${diff.toLocaleString()}`;
+        banner.style.background = "rgba(59,130,246,0.15)";
+        banner.style.border = "1px solid rgba(59,130,246,0.5)";
+        banner.style.color = "#60a5fa";
+      } else {
+        banner.innerHTML = `⚠️ FALTANTE: $${Math.abs(diff).toLocaleString()}`;
+        banner.style.background = "rgba(239,68,68,0.15)";
+        banner.style.border = "1px solid rgba(239,68,68,0.5)";
+        banner.style.color = "#ef4444";
+      }
+    }
+
+    document.getElementById('z-actual-sales').oninput = updateZDiff;
+
+    const btnSaveZ = document.getElementById('btn-save-z-report');
+    if (btnSaveZ) {
+      btnSaveZ.addEventListener('click', async () => {
+        const date = document.getElementById('z-report-date').value;
+        const actual = parseFloat(document.getElementById('z-actual-sales').value);
+        const shift = document.getElementById('z-report-shift').value;
+
+        if (!actual || actual <= 0) return await customAlert("Ingresá el monto real facturado.");
+        
+        showLoading(true);
+        const { error } = await supabase.from('daily_z_report').upsert({
+          report_date: date,
+          shift: shift,
+          manual_actual_sales: actual,
+          system_ticket_sales: currentDaySystemData.sales,
+          system_total_cmv: currentDaySystemData.cmv,
+          total_tickets_count: currentDaySystemData.count
+        }, { onConflict: 'report_date, shift' });
+
+        if (!error) {
+          await customAlert(`Cierre ${shift} guardado exitosamente.`, "Éxito");
+          await updateMonthlyGrowthChart();
+        } else {
+          await customAlert("Error guardando cierre: " + error.message);
+        }
+        showLoading(false);
+      });
+    }
+
+    window.deleteZEntry = async (id) => {
+      const conf = await customConfirm("¿Seguro querés borrar este cierre Z? Esta acción no se puede deshacer.", "Borrar Registro Z");
+      if (!conf) return;
+      showLoading(true);
+      await supabase.from('daily_z_report').delete().eq('id', id);
+      await updateMonthlyGrowthChart();
+      showLoading(false);
+    }
+
+    async function updateMonthlyGrowthChart() {
+      const { data: history } = await supabase.from('daily_z_report').select('*').order('report_date', { ascending: false });
+      if (!history) return;
+
+      // Update History Table
+      const historyTbody = document.getElementById('z-history-tbody');
+      if (historyTbody) {
+        historyTbody.innerHTML = history.slice(0, 10).map(h => {
+           const diff = h.manual_actual_sales - h.system_ticket_sales;
+           return `<tr>
+             <td>${h.report_date}</td>
+             <td>${h.shift || 'Día'}</td>
+             <td>${formatCurrency(h.manual_actual_sales)}</td>
+             <td style="color:${diff < -10 ? '#ef4444' : '#10b981'};">${formatCurrency(diff)}</td>
+             <td><button class="btn btn-secondary" style="color:red; padding:4px 8px;" onclick="window.deleteZEntry('${h.id}')">🗑️</button></td>
+           </tr>`;
+        }).join('');
+      }
+
+      const revHistory = [...history].reverse();
+      const monthsMap = {};
+      const dowStats = { 0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[] };
+      const dowNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+
+      revHistory.forEach(h => {
+        const m = h.report_date.substring(0, 7);
+        if (!monthsMap[m]) monthsMap[m] = { sales: 0, cmv: 0 };
+        monthsMap[m].sales += parseFloat(h.manual_actual_sales);
+        monthsMap[m].cmv += parseFloat(h.system_total_cmv);
+        
+        const day = new Date(h.report_date + 'T00:00:00').getDay();
+        dowStats[day].push(parseFloat(h.manual_actual_sales));
+      });
+
+      // Update DOW List
+      const dowContainer = document.getElementById('z-dow-list');
+      if (dowContainer) {
+        const averages = Object.keys(dowStats).map(d => {
+           const sum = dowStats[d].reduce((a,b) => a+b, 0);
+           return { day: dowNames[d], avg: sum / (dowStats[d].length || 1), count: dowStats[d].length };
+        }).sort((a,b) => b.avg - a.avg);
+
+        dowContainer.innerHTML = averages.map(a => `
+           <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px;">
+              <span>${a.day}</span>
+              <span style="font-weight:bold;">${formatCurrency(a.avg)} <small style="color:var(--text-muted); font-weight:normal; font-size:10px;">(x${a.count})</small></span>
+           </div>
+        `).join('');
+      }
+
+      const labels = Object.keys(monthsMap);
+      const salesData = labels.map(l => monthsMap[l].sales);
+      const cmvData = labels.map(l => monthsMap[l].cmv);
+
+      const ctx = document.getElementById('growthChart').getContext('2d');
+      if (growthChart) growthChart.destroy();
+
+      growthChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'Facturación ($)', data: salesData, backgroundColor: '#bb935c' },
+            { label: 'Costo Insumos ($)', data: cmvData, backgroundColor: '#ef4444' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+            x: { ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+
+      // Projections Logic
+      if (labels.length > 0) {
+        const now = new Date();
+        const currMonthStr = now.toISOString().substring(0, 7);
+        const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const currentTotal = monthsMap[currMonthStr]?.sales || 0;
+        
+        // Count unique days in CURRENT month recorded in history
+        const uniqueDaysThisMonth = new Set(history.filter(h => h.report_date.substring(0, 7) === currMonthStr).map(h => h.report_date)).size;
+        
+        const avgDaily = currentTotal / (uniqueDaysThisMonth || 1);
+        const projectedTotal = avgDaily * daysInCurrentMonth;
+        
+        document.getElementById('z-projection-value').innerText = formatCurrency(projectedTotal);
+        document.getElementById('z-projection-detail').innerHTML = `
+          Llevas facturado: <b>${formatCurrency(currentTotal)}</b><br>
+          Promedio diario: <b>${formatCurrency(avgDaily)}</b><br>
+          Días del mes: <b>${daysInCurrentMonth}</b>
+        `;
+
+        if (labels.length >= 2) {
+          const prevMonthStr = labels[labels.length - 2];
+          const prevTotal = monthsMap[prevMonthStr].sales;
+          const projGrowth = ((projectedTotal / (prevTotal || 1)) - 1) * 100;
+          
+          document.getElementById('z-projection-growth').innerHTML = 
+            `<span style="color:${projGrowth > 0 ? '#10b981' : '#ef4444'}">${projGrowth > 0 ? '+' : ''}${projGrowth.toFixed(1)}%</span> vs mes pasado`;
+        }
+      }
+
+      // Generate Insights
+      if (labels.length >= 2) {
+        const curr = labels[labels.length - 1];
+        const prev = labels[labels.length - 2];
+        const growth = ((monthsMap[curr].sales / (monthsMap[prev].sales || 1)) - 1) * 100;
+        const cmvEff = (monthsMap[curr].cmv / (monthsMap[curr].sales || 1) * 100);
+        
+        document.getElementById('mom-insights').innerText = `Venta vs Mes Pasado: ${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
+        
+        let tipsHtml = `
+          <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+            <strong style="color:#10b981;">📈 Diagnóstico de Venta:</strong><br>
+            ${growth > 0 ? 'Tus ventas están creciendo. Mantené la calidad para fidelizar.' : 'Las ventas bajaron respecto al mes pasado. ¿Hubo feriados o cambios de precio?'}
+          </div>
+          <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+            <strong style="color:#ef4444;">🛡️ Eficiencia Insumos:</strong><br>
+            Tu CMV promedio es del ${cmvEff.toFixed(1)}%. ${cmvEff > 35 ? 'Ojo, está alto. Revisá recetas o subí precios.' : 'Tu margen de mercadería es excelente.'}
+          </div>
+        `;
+        document.getElementById('z-ai-tips').innerHTML = tipsHtml;
+      } else {
+         document.getElementById('mom-insights').innerText = "Ventas de: " + labels[0];
+      }
+    }
+
+    // --- BULK Z LOADERS ---
+    const btnOpenBulkZ = document.getElementById('btn-open-z-bulk');
+    const bulkZModal = document.getElementById('z-bulk-modal');
+    const btnCloseBulkZ = document.getElementById('btn-close-z-bulk');
+    const btnLoadBulkSheet = document.getElementById('btn-load-z-bulk-sheet');
+    const bulkZTbody = document.getElementById('z-bulk-tbody');
+    const btnSaveBulkZ = document.getElementById('btn-save-z-bulk');
+
+    if (btnOpenBulkZ) btnOpenBulkZ.onclick = () => {
+      document.getElementById('z-bulk-month').value = new Date().toISOString().substring(0, 7);
+      bulkZModal.classList.remove('hidden');
+    }
+    if (btnCloseBulkZ) btnCloseBulkZ.onclick = () => bulkZModal.classList.add('hidden');
+
+    if (btnLoadBulkSheet) {
+      btnLoadBulkSheet.addEventListener('click', async () => {
+        const monthStr = document.getElementById('z-bulk-month').value;
+        if(!monthStr) return;
+        
+        showLoading(true);
+        const [year, month] = monthStr.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        // 1. Fetch existing Z-Records for the month
+        const { data: exZ } = await supabase.from('daily_z_report').select('*').gte('report_date', `${monthStr}-01`).lte('report_date', `${monthStr}-${daysInMonth}`);
+        
+        // 2. Fetch Tickets Summary for Reference
+        const { data: salesRef } = await supabase.from('sales').select('total_amount, sale_date, created_at').gte('sale_date', `${monthStr}-01`).lte('sale_date', `${monthStr}-${daysInMonth}`);
+        
+        // Map data for quick access
+        const zMap = {};
+        exZ.forEach(z => zMap[`${z.report_date}_${z.shift}`] = z.manual_actual_sales);
+
+        const refMap = {};
+        salesRef.forEach(s => {
+           const d = s.sale_date;
+           const h = new Date(s.created_at).getHours();
+           const m = new Date(s.created_at).getMinutes();
+           const shift = (h * 60 + m) <= 1110 ? 'Día' : 'Noche';
+           const k = `${d}_${shift}`;
+           refMap[k] = (refMap[k] || 0) + (parseFloat(s.total_amount) || 0);
+        });
+
+        // 3. Render rows
+        let html = '';
+        for (let i = 1; i <= daysInMonth; i++) {
+           const dayStr = i.toString().padStart(2, '0');
+           const fullDate = `${monthStr}-${dayStr}`;
+           
+           html += `
+             <tr>
+                <td style="font-weight:bold;">${dayStr}/${month}</td>
+                <td><input type="number" step="1" value="${zMap[fullDate+'_Día'] || ''}" id="bulk-z-${fullDate}-Día" style="width:100%; height:35px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; text-align:center;"></td>
+                <td><input type="number" step="1" value="${zMap[fullDate+'_Noche'] || ''}" id="bulk-z-${fullDate}-Noche" style="width:100%; height:35px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; text-align:center;"></td>
+                <td style="font-size:11px; color:var(--text-muted);">
+                   ☀️ ${formatCurrency(refMap[fullDate+'_Día'] || 0)}<br>
+                   🌙 ${formatCurrency(refMap[fullDate+'_Noche'] || 0)}
+                </td>
+             </tr>
+           `;
+        }
+        bulkZTbody.innerHTML = html;
+        showLoading(false);
+      });
+    }
+
+    if (btnSaveBulkZ) {
+      btnSaveBulkZ.addEventListener('click', async () => {
+        const monthStr = document.getElementById('z-bulk-month').value;
+        const [year, month] = monthStr.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        const updates = [];
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dayStr = i.toString().padStart(2, '0');
+          const fullDate = `${monthStr}-${dayStr}`;
+          
+          ['Día', 'Noche'].forEach(shift => {
+             const val = document.getElementById(`bulk-z-${fullDate}-${shift}`).value;
+             if (val !== "") {
+               updates.push({
+                 report_date: fullDate,
+                 shift: shift,
+                 manual_actual_sales: parseFloat(val) || 0
+               });
+             }
+          });
+        }
+
+        if (updates.length === 0) return;
+        
+        showLoading(true);
+        const { error } = await supabase.from('daily_z_report').upsert(updates, { onConflict: 'report_date, shift' });
+        
+        if (!error) {
+          await customAlert("¡Planilla guardada exitosamente! Ya podés ver los gráficos actualizados.", "Éxito Brillante");
+          bulkZModal.classList.add('hidden');
+          await updateMonthlyGrowthChart();
+        } else {
+          await customAlert("Error en carga masiva: " + error.message);
+        }
+        showLoading(false);
+      });
+    }
+
     async function initApp() {
       // --- Admin Auth ---
       const btnAdminAuth = document.getElementById('btn-admin-auth');
@@ -1511,6 +2702,9 @@
         updateAuthUI();
       }
 
+      // Initial check for stock alerts
+      calculateDashboardVariables();
+
       navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
@@ -1526,6 +2720,9 @@
           if (targetId === 'view-dashboard') loadDashboardView();
           if (targetId === 'view-recipes') loadRecipesView();
           if (targetId === 'view-history') loadHistoryView();
+          if (targetId === 'view-analytics') loadAnalyticsView();
+          if (targetId === 'view-procurement') loadProcurementView();
+          if (targetId === 'view-zreport') loadZReportView();
           if (targetId === 'view-calculator') { const btnLoadCalc = document.getElementById('btn-load-calc-items'); if(btnLoadCalc) btnLoadCalc.click(); }
         });
       });
@@ -1730,13 +2927,107 @@
         });
       }
 
+      // Production Handlers
+      const btnOpenProd = document.getElementById('btn-open-production');
+      const prodModal = document.getElementById('production-modal');
+      const btnCloseProd = document.getElementById('btn-close-production');
+      const btnConfirmProd = document.getElementById('btn-confirm-production');
+      const prodSelector = document.getElementById('prod-item-id');
+      const prodQtyInput = document.getElementById('prod-qty');
+      const prodPreview = document.getElementById('prod-recipe-preview');
+
+      if (btnOpenProd) {
+        btnOpenProd.addEventListener('click', async () => {
+          showLoading(true);
+          const { data: recipeCheck } = await supabase.from('recipes').select('product_id');
+          const productIdsWithRecipe = [...new Set(recipeCheck.map(r => r.product_id))];
+          
+          const { data: allElaborables } = await supabase.from('items').select('id, name, unit, bulk_size').in('id', productIdsWithRecipe).order('name');
+          // HARD FILTER: Only items with 'medallon' in the name, EXCLUDING extras
+          const elaborables = (allElaborables || []).filter(e => {
+            const n = e.name.toLowerCase();
+            return (n.includes('medallón') || n.includes('medallon')) && !n.includes('extra');
+          });
+          
+          if (elaborables.length > 0) {
+            prodSelector.innerHTML = '<option value="">-- Seleccionar --</option>' + 
+              elaborables.map(e => `<option value="${e.id}" data-yield="${e.bulk_size || 1}">${e.name} (${e.unit})</option>`).join('');
+          }
+          prodModal.classList.remove('hidden');
+          showLoading(false);
+        });
+      }
+
+      if (btnCloseProd) btnCloseProd.addEventListener('click', () => prodModal.classList.add('hidden'));
+
+      async function updateProductionPreview() {
+        const itemId = prodSelector.value;
+        const qty = parseFloat(prodQtyInput.value) || 0;
+        if (!itemId || qty <= 0) {
+          prodPreview.innerHTML = '<p style="color:var(--text-muted);">Ingresá cantidad para ver desglose.</p>';
+          return;
+        }
+
+        const selected = prodSelector.options[prodSelector.selectedIndex];
+        const nominalYield = parseFloat(selected.getAttribute('data-yield')) || 1;
+        const multiplier = qty / nominalYield;
+
+        const { data: recipe } = await supabase.from('recipes').select('quantity, items!recipes_ingredient_id_fkey(name, unit)').eq('product_id', itemId);
+        if (recipe) {
+          prodPreview.innerHTML = '<strong>Consumo estimado de stock:</strong><br>' + 
+            recipe.map(r => `• ${r.items.name}: <span style="color:#ef4444;">-${(r.quantity * multiplier).toFixed(2)} ${r.items.unit}</span>`).join('<br>');
+        }
+      }
+
+      if (prodSelector) prodSelector.onchange = updateProductionPreview;
+      if (prodQtyInput) prodQtyInput.oninput = updateProductionPreview;
+
+      if (btnConfirmProd) {
+        btnConfirmProd.addEventListener('click', async () => {
+          const itemId = prodSelector.value;
+          const qty = parseFloat(prodQtyInput.value);
+          if (!itemId || isNaN(qty) || qty <= 0) return await customAlert("Completá todos los campos correctamente.");
+          
+          if (!defaultDepositId) return await customAlert("No hay depósito configurado.");
+
+          showLoading(true);
+          btnConfirmProd.disabled = true;
+
+          try {
+            const selected = prodSelector.options[prodSelector.selectedIndex];
+            const nominalYield = parseFloat(selected.getAttribute('data-yield')) || 1;
+            const multiplier = qty / nominalYield;
+
+            const { data: recipe } = await supabase.from('recipes').select('ingredient_id, quantity').eq('product_id', itemId);
+            
+            // 1. Discount Ingredients
+            for (const ing of recipe) {
+               await registerMovement('production_input', ing.ingredient_id, defaultDepositId, ing.quantity * multiplier, 'Consumo por elaboración: ' + selected.text);
+            }
+
+            // 2. Add Yield
+            await registerMovement('production_yield', itemId, defaultDepositId, qty, 'Resultado de elaboración');
+
+            prodModal.classList.add('hidden'); // Close modal BEFORE the alert
+            await customAlert("¡Producción registrada! El stock de insumos bajó y el de manufacturados subió correctamente.", "Éxito");
+            await loadInventoryView();
+          } catch (e) {
+            console.error(e);
+            await customAlert("Error en la cadena de producción.");
+          } finally {
+            btnConfirmProd.disabled = false;
+            showLoading(false);
+          }
+        });
+      }
+
       // ABM Handlers
       if (btnSaveItem) {
         btnSaveItem.addEventListener('click', async () => {
-          const n = abmItemName.value, u = abmItemUnit.value, bn = abmItemBulk.value, bs = abmItemBulkSize.value, c = abmItemCost.value, cat = abmItemCategory.value;
+          const n = abmItemName.value, u = abmItemUnit.value, bn = abmItemBulk.value, bs = abmItemBulkSize.value, c = abmItemCost.value, cat = abmItemCategory.value, th = abmItemThreshold.value;
           if (!n) { await customAlert('Debes ingresar el nombre del insumo.'); return; }
           showLoading(true);
-          const { success, error } = await saveRawMaterial(n, u, bn, Number(bs) || 1, Number(c) || 0, cat || 'General');
+          const { success, error } = await saveRawMaterial(n, u, bn, Number(bs) || 1, Number(c) || 0, cat || 'General', Number(th) || 0);
           if (success) {
             await customAlert(editingRawId ? 'Materia prima actualizada exitosamente.' : 'Materia prima creada exitosamente.', "Éxito");
             resetRawForm();
@@ -1774,9 +3065,12 @@
           const isSale = abmRecipeIsSale.checked;
           const rYield = parseFloat(abmRecipeYield.value) || 1;
           const rUnit = abmRecipeUnit.value || 'unidades';
+          const rTh = abmRecipeThreshold.value || 0;
+          const rImg = abmRecipeImage.value || null;
+          const rZoom = parseFloat(abmRecipeZoom.value) || 1;
           if (!name || currentRecipeItems.length === 0) { await customAlert('Debes ingresar el nombre y al menos un ingrediente.'); return; }
           showLoading(true);
-          const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit);
+          const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit, Number(rTh) || 0, rImg, rZoom);
           if (success) {
             await customAlert(editingRecipeId ? 'Receta actualizada exitosamente.' : 'Receta creada exitosamente.', "Éxito");
             resetRecipeForm();
@@ -1790,6 +3084,9 @@
       const deposits = await getDeposits();
       if (deposits.length > 0) defaultDepositId = deposits[0].id;
       else await customAlert("IMPORTANTE: No hay depósitos. Crea uno en Supabase primero (Tabla 'deposits') o las ventas/movimientos fallarán.", "Atención Principal");
+      const btnRefresh = document.getElementById('btn-refresh-app');
+      if (btnRefresh) btnRefresh.onclick = () => location.reload();
+
       await loadDashboardView();
     }
 

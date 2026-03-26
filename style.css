@@ -51,23 +51,28 @@ body {
 
 /* Layout */
 .app-container {
-  display: flex;
-  width: 95vw;
-  height: 95vh;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  width: 98vw;
+  height: 98vh;
   margin: auto;
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  position: relative;
 }
 
 /* Sidebar */
 .sidebar {
   width: 260px;
+  height: 100%;
   border-right: 1px solid var(--panel-border);
-  border-radius: 0;
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  z-index: 10;
+  overflow-y: auto;
 }
 
 .logo h1 {
@@ -112,10 +117,10 @@ body {
 
 /* Content Area */
 .content-area {
-  flex: 1;
   padding: 40px;
   overflow-y: auto;
   position: relative;
+  height: 100%;
 }
 
 header { margin-bottom: 30px; }
@@ -207,3 +212,48 @@ label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-m
 .modal-content h3 { font-family: var(--font-logo); margin-top: 0; margin-bottom: 5px; font-size:24px; color: var(--primary-hover); font-weight:normal;}
 .modal-content p { color: var(--text-main); font-size: 15px; margin-bottom: 25px; }
 .modal-actions { display: flex; gap: 15px; justify-content: center; }
+
+/* Low Stock Indicators */
+.badge-alert {
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 8px;
+  display: inline-block;
+  vertical-align: middle;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.row-low-stock {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-left: 3px solid #ef4444 !important;
+}
+
+.pos-card-low-stock {
+  position: relative;
+  overflow: hidden;
+}
+
+.pos-card-low-stock::after {
+  content: "STOCK BAJO";
+  position: absolute;
+  top: 10px;
+  right: -25px;
+  background: #ef4444;
+  color: white;
+  font-size: 8px;
+  font-weight: 900;
+  padding: 2px 30px;
+  transform: rotate(45deg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
