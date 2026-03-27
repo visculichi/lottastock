@@ -6,6 +6,10 @@
   <title>Stock Control - Whole Lotta Burgers</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -129,7 +133,15 @@
             <h2>🧮 Hoja de Conteo: CMV Real (Auditoría)</h2>
             <p>Calculadora independiente. Carga tu stock físico (por unidades/gramos) para calcular la diferencia financiera.</p>
           </div>
-          <button class="btn btn-secondary" id="btn-load-calc-items" style="padding:10px 20px;">🔄 Cargar Insumos de la Base de Datos</button>
+          <div style="display:flex; gap:12px; align-items:flex-end;">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <label style="font-size:12px; font-weight:bold; color:var(--primary-color);">📅 Fecha de Control:</label>
+              <input type="date" id="calc-date" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; height:45px; box-sizing:border-box;">
+            </div>
+            <button class="btn btn-secondary" id="btn-toggle-hidden-rows" style="padding:0 20px; height:45px; border-color:var(--text-muted); color:var(--text-muted); display:flex; align-items:center; gap:8px;">👁️ Ver Todos</button>
+            <button class="btn btn-secondary" id="btn-export-calc-pdf" style="padding:0 20px; height:45px; border-color:#10b981; color:#10b981; display:flex; align-items:center; gap:8px;">📄 Exportar PDF</button>
+            <button class="btn btn-secondary" id="btn-load-calc-items" style="padding:0 25px; height:45px; display:flex; align-items:center; gap:8px;">🔄 Cargar Hoja</button>
+          </div>
         </header>
 
         <div class="cards-grid">
@@ -137,12 +149,14 @@
             <table class="data-table" style="margin-top:0;">
               <thead>
                 <tr>
-                  <th style="width:25%;">Insumo (Unidad)</th>
-                  <th style="width:15%;">Costo Unit. ($)</th>
-                  <th>Stock Inicial</th>
-                  <th>+ Compras</th>
-                  <th>- Stock Final</th>
-                  <th style="width:15%;">================<br>Costo Consumido ($)</th>
+                  <th style="width:20%;">Insumo (Unidad)</th>
+                  <th style="width:10%;">Costo Unit. ($)</th>
+                  <th style="width:10%;">Stock Teórico<br>(Sistema)</th>
+                  <th>Stock Inicial<br>Bultos | Unid.</th>
+                  <th>+ Ingresos / Compras<br>Bultos | Unid.</th>
+                  <th style="color:var(--primary-color);">Total Disponible<br>Bultos | Unid.</th>
+                  <th>- Stock Final<br>Bultos | Unid.</th>
+                  <th style="width:12%;">================<br>Costo Consumido ($)</th>
                 </tr>
               </thead>
               <tbody id="calc-tbody">
@@ -2845,16 +2859,19 @@
         });
       });
 
-      const btnFilterDash = document.getElementById('btn-filter-dash');
-      if (btnFilterDash) {
-        btnFilterDash.addEventListener('click', () => {
-          const fromD = document.getElementById('dash-date-from')?.value;
-          const toD = document.getElementById('dash-date-to')?.value;
-          loadDashboardView(fromD, toD);
-        });
-      }
-
       let calcItemsList = [];
+      let showHiddenRows = false; 
+
+      const updateCategoryVisibility = () => {
+        const catHeaders = document.querySelectorAll('.category-header-row');
+        catHeaders.forEach(header => {
+          const catName = header.getAttribute('data-catname');
+          const relatedRows = Array.from(document.querySelectorAll(`tr[data-category="${catName}"]`));
+          const anyVisible = relatedRows.some(r => r.style.display !== 'none');
+          header.style.display = anyVisible ? 'table-row' : 'none';
+        });
+      };
+
       const btnLoadCalc = document.getElementById('btn-load-calc-items');
       const calcTbody = document.getElementById('calc-tbody');
       
@@ -2864,57 +2881,183 @@
           const itemsData = await getComputedItems(); 
           if (!itemsData) { showLoading(false); return; }
           
-          calcItemsList = itemsData.filter(i => i.type === 'raw_material' || i.type === 'assembled');
+          const { data: invData } = await supabase.from('inventory').select('item_id, quantity');
+          const stockMap = {};
+          if (invData) {
+            invData.forEach(s => {
+              if (!stockMap[s.item_id]) stockMap[s.item_id] = 0;
+              stockMap[s.item_id] += s.quantity;
+            });
+          }
+
+          calcItemsList = itemsData
+            .filter(i => i.type === 'raw_material' || i.type === 'assembled')
+            .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+          
+          const hiddenItems = JSON.parse(localStorage.getItem('wlb_calc_hidden_items') || '[]');
           
           if (calcItemsList.length === 0) {
-            calcTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados.</td></tr>';
+            calcTbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">No hay insumos registrados.</td></tr>';
           } else {
-            calcTbody.innerHTML = calcItemsList.map((i, index) => {
-              return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition: opacity 0.2s;" id="calc-row-container-${index}">
-                <td style="font-size:13px; line-height:1.4; text-align:left;">
-                  <div style="display:flex; align-items:center; justify-content:flex-start; gap:12px;">
-                    <input type="checkbox" id="calc-include-${index}" checked style="accent-color:var(--primary-color); cursor:pointer; margin:0; width:16px; height:16px; flex-shrink:0;">
-                    <div style="text-align:left; display:flex; flex-direction:column; justify-content:center;"><b>${i.name}</b><span style="color:var(--text-muted); font-size:11px;">(${i.unit})</span></div>
-                  </div>
-                </td>
-                <td style="font-family:monospace; color:var(--text-muted); font-size:13px;">${formatCurrency(i.cost || 0)}</td>
-                <td><input type="number" id="calc-min-${index}" value="0" style="width:85px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:14px; text-align:center;"></td>
-                <td><input type="number" id="calc-buy-${index}" value="0" style="width:85px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:14px; text-align:center;"></td>
-                <td><input type="number" id="calc-mout-${index}" value="0" style="width:85px; padding:6px; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981; border-radius:4px; font-size:14px; text-align:center;"></td>
-                <td style="text-align:right; font-weight:bold; color:#ef4444; font-size:14px;" id="calc-row-res-${index}">$0</td>
-              </tr>`;
-            }).join('');
-            
-            calcItemsList.forEach((_, idx) => {
+            const grouped = {};
+            calcItemsList.forEach((item, index) => {
+               const cat = item.category || 'Sin Categoría';
+               if (!grouped[cat]) grouped[cat] = [];
+               grouped[cat].push({ item, originalIndex: index });
+            });
+
+            const sortedCategories = Object.keys(grouped).sort();
+            let finalHtml = '';
+            sortedCategories.forEach(catName => {
+               finalHtml += `<tr class="category-header-row" data-catname="${catName}" style="background:rgba(59,130,246,0.1); border-top: 2px solid rgba(59,130,246,0.2);">
+                 <td colspan="8" style="padding:12px 15px; font-weight:bold; color:var(--primary-color); font-size:14px; text-transform:uppercase; letter-spacing:1px; text-align:left;">📂 CATEGORÍA: ${catName}</td>
+               </tr>`;
+               grouped[catName].forEach(({ item: i, originalIndex: index }) => {
+                  const theor = stockMap[i.id] || 0;
+                  const u = i.unit || '';
+                  const isHidden = hiddenItems.includes(i.id);
+                  const displayStyle = (isHidden && !showHiddenRows) ? 'none' : 'table-row';
+                  finalHtml += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition: opacity 0.2s; display:${displayStyle};" id="calc-row-container-${index}" data-category="${catName}">
+                    <td style="font-size:13px; line-height:1.4; text-align:left; padding-left:25px;">
+                      <div style="display:flex; align-items:center; justify-content:flex-start; gap:12px;">
+                        <input type="checkbox" id="calc-include-${index}" ${!isHidden ? 'checked' : ''} style="accent-color:var(--primary-color); cursor:pointer; margin:0; width:16px; height:16px; flex-shrink:0;">
+                        <div style="text-align:left; display:flex; flex-direction:column; justify-content:center;"><b>${i.name}</b><span style="color:var(--text-muted); font-size:11px;">(${u})</span></div>
+                      </div>
+                    </td>
+                    <td style="font-family:monospace; color:var(--text-muted); font-size:13px;">${formatCurrency(i.cost || 0)}</td>
+                    <td style="font-weight:bold; color:var(--text-muted); font-size:13px;">${theor.toFixed(1)} <small>${u}</small></td>
+                    <td>
+                      <div style="display:flex; gap:4px; justify-content:center;">
+                        <input type="number" id="calc-min-bulk-${index}" placeholder="B" style="width:45px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:13px; text-align:center;" title="Bultos">
+                        <input type="number" id="calc-min-unit-${index}" placeholder="U" style="width:55px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:13px; text-align:center;" title="Unidades">
+                      </div>
+                      <div id="calc-min-total-${index}" style="font-size:9px; color:var(--text-muted); margin-top:4px; text-align:center;">Total: 0</div>
+                    </td>
+                    <td>
+                      <div style="display:flex; gap:4px; justify-content:center; align-items:center;">
+                        <input type="number" id="calc-buy-bulk-${index}" placeholder="B" style="width:45px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:13px; text-align:center;" title="Bultos">
+                        <button class="btn" style="padding:2px 5px; font-size:10px; height:24px;" onclick="window.incrementCalcVal('calc-buy-bulk-${index}', ${index})">+</button>
+                        <input type="number" id="calc-buy-unit-${index}" placeholder="U" style="width:55px; padding:6px; background:rgba(255,255,255,0.05); color:white; border:1px solid var(--border-color); border-radius:4px; font-size:13px; text-align:center;" title="Unidades">
+                        <button class="btn" style="padding:2px 5px; font-size:10px; height:24px;" onclick="window.incrementCalcVal('calc-buy-unit-${index}', ${index})">+</button>
+                      </div>
+                      <div id="calc-buy-total-${index}" style="font-size:9px; color:var(--text-muted); margin-top:4px; text-align:center;">Total: 0</div>
+                    </td>
+                    <td style="background:rgba(59,130,246,0.05);">
+                      <div id="calc-disp-total-${index}" style="font-weight:bold; color:var(--primary-color); font-size:14px; text-align:center;">0</div>
+                      <div style="font-size:9px; color:var(--text-muted); text-align:center;">${i.bulk_name || 'Bulto'} / ${u}</div>
+                    </td>
+                    <td>
+                      <div style="display:flex; gap:4px; justify-content:center;">
+                        <input type="number" id="calc-mout-bulk-${index}" placeholder="B" style="width:45px; padding:6px; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981; border-radius:4px; font-size:13px; text-align:center;" title="Bultos">
+                        <input type="number" id="calc-mout-unit-${index}" placeholder="U" style="width:55px; padding:6px; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981; border-radius:4px; font-size:13px; text-align:center;" title="Unidades">
+                      </div>
+                      <div id="calc-mout-total-${index}" style="font-size:9px; color:var(--text-muted); margin-top:4px; text-align:center;">Total: 0</div>
+                    </td>
+                    <td style="text-align:right; font-weight:bold; color:#ef4444; font-size:14px;" id="calc-row-res-${index}">$0</td>
+                  </tr>`;
+               });
+            });
+            calcTbody.innerHTML = finalHtml;
+            updateCategoryVisibility();
+
+            calcItemsList.forEach((item, idx) => {
                const autoCalcRow = () => {
                  const isIncluded = document.getElementById(`calc-include-${idx}`).checked;
                  const rowEl = document.getElementById(`calc-row-container-${idx}`);
-                 if(rowEl) rowEl.style.opacity = isIncluded ? "1" : "0.3";
+                 const hItems = JSON.parse(localStorage.getItem('wlb_calc_hidden_items') || '[]');
+                 if (!isIncluded) { if (!hItems.includes(item.id)) hItems.push(item.id); } 
+                 else { const iIdx = hItems.indexOf(item.id); if (iIdx > -1) hItems.splice(iIdx, 1); }
+                 localStorage.setItem('wlb_calc_hidden_items', JSON.stringify(hItems));
 
-                 const iCost = calcItemsList[idx].cost || 0;
-                 const inicial = parseFloat(document.getElementById(`calc-min-${idx}`).value) || 0;
-                 const compras = parseFloat(document.getElementById(`calc-buy-${idx}`).value) || 0;
-                 const final = parseFloat(document.getElementById(`calc-mout-${idx}`).value) || 0;
-                 
-                 const moneyConsumed = isIncluded ? ((inicial + compras) - final) * iCost : 0;
+                 if(rowEl) {
+                   rowEl.style.opacity = isIncluded ? "1" : "0.3";
+                   rowEl.style.display = (!isIncluded && !showHiddenRows) ? 'none' : 'table-row';
+                 }
+                 updateCategoryVisibility();
+
+                 const iCost = item.cost || 0;
+                 const bSize = parseFloat(item.bulk_size) || 1;
+                 const iBulk = parseFloat(document.getElementById(`calc-min-bulk-${idx}`).value) || 0;
+                 const iUnit = parseFloat(document.getElementById(`calc-min-unit-${idx}`).value) || 0;
+                 const inicial = (iBulk * bSize) + iUnit;
+                 const cBulk = parseFloat(document.getElementById(`calc-buy-bulk-${idx}`).value) || 0;
+                 const cUnit = parseFloat(document.getElementById(`calc-buy-unit-${idx}`).value) || 0;
+                 const compras = (cBulk * bSize) + cUnit;
+                 const fBulk = parseFloat(document.getElementById(`calc-mout-bulk-${idx}`).value) || 0;
+                 const fUnit = parseFloat(document.getElementById(`calc-mout-unit-${idx}`).value) || 0;
+                 const final = (fBulk * bSize) + fUnit;
+                 const totalDisp = inicial + compras;
+                 const moneyConsumed = isIncluded ? (totalDisp - final) * iCost : 0;
                  document.getElementById(`calc-row-res-${idx}`).innerText = formatCurrency(moneyConsumed);
-                 
-                 document.getElementById(`calc-min-${idx}`).disabled = !isIncluded;
-                 document.getElementById(`calc-buy-${idx}`).disabled = !isIncluded;
-                 document.getElementById(`calc-mout-${idx}`).disabled = !isIncluded;
-
-                 // Notify parent calculation loop
-                 const btnCalcularCmv = document.getElementById('btn-calcular-cmv');
-                 if(btnCalcularCmv) btnCalcularCmv.click();
+                 const uName = item.unit || '';
+                 document.getElementById(`calc-min-total-${idx}`).innerText = `Total: ${inicial.toFixed(1)} ${uName}`;
+                 document.getElementById(`calc-buy-total-${idx}`).innerText = `Total: ${compras.toFixed(1)} ${uName}`;
+                 document.getElementById(`calc-mout-total-${idx}`).innerText = `Total: ${final.toFixed(1)} ${uName}`;
+                 const dBulk = Math.floor(totalDisp / bSize);
+                 const dUnit = (totalDisp % bSize).toFixed(1);
+                 document.getElementById(`calc-disp-total-${idx}`).innerText = `${dBulk} | ${dUnit}`;
+                 const inpArr = [`calc-min-bulk-${idx}`, `calc-min-unit-${idx}`, `calc-buy-bulk-${idx}`, `calc-buy-unit-${idx}`, `calc-mout-bulk-${idx}`, `calc-mout-unit-${idx}`];
+                 inpArr.forEach(id => { const el = document.getElementById(id); if(el) el.disabled = !isIncluded; });
+                 const bCmv = document.getElementById('btn-calcular-cmv');
+                 if(bCmv) bCmv.click();
                };
-               document.getElementById(`calc-min-${idx}`).addEventListener('input', autoCalcRow);
-               document.getElementById(`calc-buy-${idx}`).addEventListener('input', autoCalcRow);
-               document.getElementById(`calc-mout-${idx}`).addEventListener('input', autoCalcRow);
+               const ids = [`calc-min-bulk-${idx}`, `calc-min-unit-${idx}`, `calc-buy-bulk-${idx}`, `calc-buy-unit-${idx}`, `calc-mout-bulk-${idx}`, `calc-mout-unit-${idx}`];
+               ids.forEach(id => document.getElementById(id).addEventListener('input', autoCalcRow));
                document.getElementById(`calc-include-${idx}`).addEventListener('change', autoCalcRow);
             });
           }
           showLoading(false);
         });
+      }
+
+      window.incrementCalcVal = async (id, idx) => {
+        const el = document.getElementById(id);
+        const val = await customPrompt(`¿Cuánto deseas sumar a la cantidad actual de ${el.title.toLowerCase()}?`, "Sumar Compra", "number");
+        if (val !== null && !isNaN(parseFloat(val))) {
+          el.value = (parseFloat(el.value) || 0) + parseFloat(val);
+          el.dispatchEvent(new Event('input'));
+        }
+      };
+
+      const btnToggleHidden = document.getElementById('btn-toggle-hidden-rows');
+      if (btnToggleHidden) {
+        btnToggleHidden.onclick = () => {
+          showHiddenRows = !showHiddenRows;
+          btnToggleHidden.innerText = showHiddenRows ? "👁️‍🗨️ Ocultar No Usados" : "👁️ Ver Todos";
+          calcItemsList.forEach((_, idx) => {
+            const row = document.getElementById(`calc-row-container-${idx}`);
+            const isInc = document.getElementById(`calc-include-${idx}`).checked;
+            if (row) row.style.display = (!isInc && !showHiddenRows) ? 'none' : 'table-row';
+          });
+          updateCategoryVisibility();
+        };
+      }
+
+      const btnExportPDF = document.getElementById('btn-export-calc-pdf');
+      if (btnExportPDF) {
+        btnExportPDF.onclick = () => {
+          if (!calcItemsList || calcItemsList.length === 0) return customAlert("Primero cargá la hoja de conteo.");
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF('landscape');
+          const date = document.getElementById('calc-date').value || new Date().toLocaleDateString();
+          doc.setFontSize(18); doc.text(`Hoja de Conteo: CMV Real / Stock - ${date}`, 14, 20);
+          doc.setFontSize(11); doc.text('Whole Lotta Burgers - Auditoría de Insumos', 14, 30);
+          const activeItems = calcItemsList.filter((_, idx) => document.getElementById(`calc-include-${idx}`).checked);
+          if (activeItems.length === 0) return customAlert("No hay ítems activos.");
+          const rows = activeItems.map(item => {
+            const idx = calcItemsList.findIndex(i => i.id === item.id);
+            const b = item.bulk_size || 1; const u = item.unit || '';
+            const iT = document.getElementById(`calc-min-total-${idx}`).innerText.replace('Total: ', '');
+            const cT = document.getElementById(`calc-buy-total-${idx}`).innerText.replace('Total: ', '');
+            const fT = document.getElementById(`calc-mout-total-${idx}`).innerText.replace('Total: ', '');
+            return [item.name, `${item.category || '-'}`, `${item.bulk_name || 'Bulto'} (${b}${u})`, iT, cT, fT, document.getElementById(`calc-row-res-${idx}`).innerText];
+          });
+          doc.autoTable({
+            startY: 35, head: [['Insumo', 'Categoría', 'Pres.', 'Inicial', 'Ingresos', 'Final', 'Consumo $']],
+            body: rows, headStyles: { fillColor: [59, 130, 246] }, theme: 'grid'
+          });
+          doc.save(`Hoja_CMV_${date}.pdf`);
+        };
       }
 
       const btnCalcularCmv = document.getElementById('btn-calcular-cmv');
@@ -2928,9 +3071,20 @@
              if (!isIncluded) return;
              
              const iCost = item.cost || 0;
-             const inicial = parseFloat(document.getElementById(`calc-min-${idx}`).value) || 0;
-             const compras = parseFloat(document.getElementById(`calc-buy-${idx}`).value) || 0;
-             const final = parseFloat(document.getElementById(`calc-mout-${idx}`).value) || 0;
+             const bSize = parseFloat(item.bulk_size) || 1;
+
+             const iBulk = parseFloat(document.getElementById(`calc-min-bulk-${idx}`).value) || 0;
+             const iUnit = parseFloat(document.getElementById(`calc-min-unit-${idx}`).value) || 0;
+             const inicial = (iBulk * bSize) + iUnit;
+
+             const cBulk = parseFloat(document.getElementById(`calc-buy-bulk-${idx}`).value) || 0;
+             const cUnit = parseFloat(document.getElementById(`calc-buy-unit-${idx}`).value) || 0;
+             const compras = (cBulk * bSize) + cUnit;
+
+             const fBulk = parseFloat(document.getElementById(`calc-mout-bulk-${idx}`).value) || 0;
+             const fUnit = parseFloat(document.getElementById(`calc-mout-unit-${idx}`).value) || 0;
+             const final = (fBulk * bSize) + fUnit;
+
              cmvMoney += ((inicial + compras) - final) * iCost;
           });
           
@@ -3166,7 +3320,7 @@
           const text = searchText;
           const cost = matchedItem.cost || 0;
           const qty = parseFloat(abmRecipeQty.value);
-          if (isNaN(qty) || qty <= 0) { await customAlert('La cantidad ingresada no es válida.'); return; }
+          if (isNaN(qty) || qty === 0) { await customAlert('La cantidad ingresada debe ser distinta de cero.'); return; }
           
           currentRecipeItems.push({ id, name: text, qty, cost });
           abmRecipeIng.value = '';
