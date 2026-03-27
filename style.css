@@ -12,6 +12,7 @@
   --font-main: 'Inter', sans-serif;
   --font-logo: 'Alfa Slab One', serif;
   --font-slogan: 'Special Elite', cursive;
+  color-scheme: dark;
 }
 
 * {
@@ -153,6 +154,11 @@ input, select {
   color: #fff;
   font-family: inherit;
   outline: none;
+}
+
+select option {
+  background-color: #1d1d1b;
+  color: #fff;
 }
 input:focus, select:focus { border-color: var(--primary-color); }
 label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-muted); }

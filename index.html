@@ -409,9 +409,14 @@
 
       <!-- Recipes View -->
       <section id="view-recipes" class="view hidden">
-        <header>
-          <h2>Gestor de Insumos y Recetas</h2>
-          <p>Da de alta materias primas (paquetes/bultos) y arma tus productos finales.</p>
+        <header style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>Gestor de Insumos y Recetas</h2>
+            <p>Da de alta materias primas (paquetes/bultos) y arma tus productos finales.</p>
+          </div>
+          <button class="btn btn-secondary" id="btn-toggle-bulk" style="border-color:#8b5cf6; color:#a78bfa; height:44px; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">⚡</span> <span>Modo Carga Masiva (OnOff)</span>
+          </button>
         </header>
 
         <div class="cards-grid">
@@ -537,17 +542,54 @@
                 <input type="number" id="abm-recipe-qty" placeholder="Cant." style="width:100px;">
                 <button class="btn btn-secondary" id="btn-add-ingredient">+</button>
               </div>
-              <div class="ticket-list" id="recipe-list" style="max-height:150px; overflow-y:auto;">
+              <div class="ticket-list" id="recipe-list" style="min-height:50px; background:rgba(0,0,0,0.1); border-radius:12px; padding:15px; border:1px solid rgba(255,255,255,0.05); margin-top:10px;">
                 <!-- Ingredients for new recipe -->
               </div>
             </div>
 
             <button class="btn btn-primary w-full" id="btn-save-recipe" style="margin-top:20px;">Guardar Producto Elaborado</button>
           </div>
-        </div>
 
+          <!-- 3. Carga Masiva de Ingredientes (Hidden by default) -->
+          <div id="bulk-add-panel" class="glass-panel w-full hidden" style="grid-column: span 3; margin-top:10px; border-top: 4px solid #8b5cf6; background: linear-gradient(180deg, rgba(139, 92, 246, 0.05) 0%, rgba(0,0,0,0) 100%);">
+            <h3 style="color:#a78bfa;">⚡ Carga Masiva de Ingredientes</h3>
+            <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">Utilidad para agregar un mismo insumo (ej: una salsa nueva o un extra) a muchos productos al mismo tiempo.</p>
+            
+            <div class="cards-grid" style="grid-template-columns: 1fr 2fr; gap:30px;">
+              <!-- Column 1: Config -->
+              <div style="display:flex; flex-direction:column; gap:15px;">
+                <div>
+                  <label>1. Elegir Insumo a Cargar</label>
+                  <input type="text" id="bulk-ing-name" list="abm-recipe-ingredient-list" placeholder="🔎 Buscar insumo..." autocomplete="off" style="border-color:rgba(139, 92, 246, 0.3);">
+                </div>
+                <div>
+                  <label>2. Cantidad / Peso</label>
+                  <input type="number" id="bulk-ing-qty" placeholder="Ej: 30" step="0.1" value="1" style="border-color:rgba(139, 92, 246, 0.3);">
+                </div>
+                <button class="btn btn-primary w-full" id="btn-bulk-apply" style="background:#8b5cf6; height:50px; font-size:16px;">💾 APLICAR A SELECCIONADOS</button>
+              </div>
+              
+              <!-- Column 2: Targets -->
+              <div style="background:rgba(0,0,0,0.2); padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                  <label style="margin:0; font-weight:bold; color:#a78bfa;">3. Seleccionar Destinos</label>
+                  <div style="display:flex; gap:8px;">
+                    <select id="bulk-target-category" style="margin:0; width:160px; padding:6px; height:36px; font-size:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);"></select>
+                    <button class="btn btn-secondary" style="padding:0 12px; font-size:11px; height:36px;" id="btn-bulk-select-all">Todos</button>
+                    <button class="btn btn-secondary" style="padding:0 12px; font-size:11px; height:36px;" id="btn-bulk-select-none">Ninguno</button>
+                  </div>
+                </div>
+                <div id="bulk-target-list" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; max-height:220px; overflow-y:auto; padding-right:10px;">
+                  <!-- Checkboxes injected here -->
+                  <p style="color:var(--text-muted); font-size:12px; grid-column: span 2;">Cargando lista de productos...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- Section: Existing Items Lists -->
-        <div class="cards-grid" style="margin-top:20px;">
+        <div class="cards-grid" style="margin-top:10px;">
           <div class="glass-panel">
             <h3>Listado de Insumos</h3>
             <div id="raw-filters" style="display:flex; gap:10px; margin-top:10px; margin-bottom:15px; overflow-x:auto;"></div>
@@ -1165,7 +1207,15 @@
       }
 
       allItems.forEach(i => {
-        if (i.type !== 'raw_material') i.cost = getCost(i.id);
+        if (i.type !== 'raw_material') {
+           i.cost = getCost(i.id);
+           // Also build a text summary of ingredients
+           const ingredients = recipesMap[i.id] || [];
+           i.ingredients_text = ingredients.map(ing => {
+             const subItem = itemsMap[ing.ingredient_id];
+             return subItem ? subItem.name : 'Unknown';
+           }).join(', ');
+        }
       });
       return allItems;
     }
@@ -1820,22 +1870,56 @@
 
     function renderRecipesTable(cat) {
       const cats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
-      recipeFilters.innerHTML = `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:var(--primary-color);" onclick="window.filterRecipes(null)">Todas</button>` + 
-        cats.map(c => `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="window.filterRecipes('${c}')">${c}</button>`).join('');
+      recipeFilters.innerHTML = `<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:var(--primary-color);" onclick="window.filterRecipes(null)">Todas</button>
+          ${cats.map(c => `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="window.filterRecipes('${c}')">${c}</button>`).join('')}
+        </div>
+        <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:#8b5cf6; color:#a78bfa;" onclick="window.toggleAllIngredients()">👁️ Ver/Ocultar Composición</button>
+      </div>`;
 
       const filtered = cat ? finalItemsData.filter(i => (i.category || 'Gral') === cat) : finalItemsData;
 
       listRecipesTable.innerHTML = filtered.map(i => 
-        `<tr><td>${i.name} <br><span style="font-size:11px;color:var(--text-muted);">(${i.category || 'Gral'})</span></td>
-        <td style="white-space:nowrap;">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-            <div style="font-weight:bold; color:var(--text-main); font-size:15px;">
-              <span style="color:var(--text-muted); font-size:13px; font-weight:normal;">Venta: $</span><span id="text-sale-${i.id}">${formatCurrency(i.sale_price || 0).replace('$', '').trim()}</span>
+        `<tr><td>
+          <div style="font-weight:bold; font-size:15px; color:white;">${i.name}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Categoría: ${i.category || 'Gral'}</div>
+          <div class="item-recipe-details hidden" style="font-size:12px; color:var(--primary-color); background:rgba(187,147,92,0.1); padding:6px 10px; border-radius:6px; border:1px solid rgba(187,147,92,0.2); line-height:1.4; margin-top:5px;">
+            <strong style="font-size:10px; text-transform:uppercase; display:block; margin-bottom:2px; opacity:0.7;">Composición:</strong>
+            ${i.ingredients_text || '<span style="font-style:italic; opacity:0.5;">Sin ingredientes cargados</span>'}
+          </div>
+        </td>
+        <td style="white-space:nowrap; text-align:right;">
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-bottom:4px;">
+            <div style="font-weight:bold; color:var(--text-main); font-size:16px;">
+              <span style="color:var(--text-muted); font-size:13px; font-weight:normal;">Venta: $</span><span id="text-sale-${i.id}" style="color:white;">${formatCurrency(i.sale_price || 0).replace('$', '').trim()}</span>
               <input type="number" step="10" value="${i.sale_price || 0}" id="inline-sale-${i.id}" class="hidden" style="width:85px; padding:4px; font-size:14px; border-radius:4px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:white; font-weight:bold; outline:none; margin-left:5px;">
             </div>
             <button id="btn-edit-sale-${i.id}" onclick="window.toggleInlineEdit('${i.id}', 'sale_price', this)" style="background:transparent; border:none; color:var(--text-muted); font-size:14px; cursor:pointer; opacity:0.6; padding:0; outline:none; transition:0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Editar Precio">✏️</button>
           </div>
-          <span style="color:var(--text-muted); font-size:12px;">Costo: ${formatCurrency(i.cost || 0)}</span>
+          <div style="color:var(--text-muted); font-size:12px; margin-bottom:4px;">Costo: ${formatCurrency(i.cost || 0)}</div>
+          
+          ${(() => {
+            const sale = i.sale_price || 0;
+            const cost = i.cost || 0;
+            if (sale <= 0) return '';
+            const cmv = (cost / sale) * 100;
+            const suggested = cost / 0.35;
+            let cmvColor = '#94a3b8'; // default
+            let cmvLabel = '---';
+            if (cmv <= 38) { cmvColor = '#10b981'; cmvLabel = 'IDEAL'; }
+            else if (cmv > 38 && cmv <= 40) { cmvColor = '#f59e0b'; cmvLabel = 'ATENCIÓN'; }
+            else if (cmv > 40) { cmvColor = '#ef4444'; cmvLabel = 'ALTO'; }
+            
+            return `
+              <div style="font-size:11px; font-weight:bold; color:${cmvColor}; border:1px solid ${cmvColor}; display:inline-block; padding:2px 6px; border-radius:4px; margin-bottom:4px;">
+                CMV: ${cmv.toFixed(1)}% (${cmvLabel})
+              </div>
+              <div style="font-size:10px; color:var(--text-muted); opacity:0.8;">
+                Ideal 35%: <span style="color:#10b981; font-weight:bold;">${formatCurrency(suggested)}</span>
+              </div>
+            `;
+          })()}
         </td>
         <td>
           <div style="display:flex; flex-direction:column; gap:6px;">
@@ -1860,11 +1944,45 @@
           dataList.innerHTML = allItems.map(i => `<option value="${i.name} (${i.type === 'raw_material' ? 'M.Prima' : 'Elab.'})"></option>`).join('');
         }
 
+        // Initialize Bulk Add Category Selector
+        const bulkCatSelector = document.getElementById('bulk-target-category');
+        if (bulkCatSelector) {
+            const recipeCats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
+            bulkCatSelector.innerHTML = '<option value="all">Todas las Categorías</option>' + 
+                recipeCats.map(c => `<option value="${c}">${c}</option>`).join('');
+            renderBulkTargets();
+        }
+
         renderRawsTable(null);
         renderRecipesTable(null);
       }
       showLoading(false);
     }
+
+    window.renderBulkTargets = () => {
+        const cat = document.getElementById('bulk-target-category').value;
+        const container = document.getElementById('bulk-target-list');
+        if(!container) return;
+        
+        const filtered = (cat === 'all' || !cat) ? finalItemsData : finalItemsData.filter(i => (i.category || 'Gral') === cat);
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-muted); font-size:12px; grid-column: span 2;">No hay productos en esta categoría.</p>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(i => `
+            <label style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); padding:10px 12px; border-radius:8px; margin:0; cursor:pointer; font-size:13px; border:1px solid rgba(255,255,255,0.08); overflow:hidden; transition: all 0.2s; min-height:44px;">
+                <input type="checkbox" class="bulk-chk" value="${i.id}" style="width:18px; height:18px; flex-shrink:0; accent-color:#8b5cf6; margin:0; cursor:pointer;">
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height: 1; margin-top: 1px;">${i.name}</span>
+            </label>
+        `).join('');
+    };
+
+    window.toggleAllIngredients = () => {
+      const details = document.querySelectorAll('.item-recipe-details');
+      details.forEach(d => d.classList.toggle('hidden'));
+    };
 
     function renderTicket() {
       if (currentTicketItems.length === 0) {
@@ -3078,6 +3196,66 @@
           } else await customAlert('Error guardando receta: ' + error.message, "Error");
           showLoading(false);
         });
+      }
+
+      // --- Bulk Add Event Listeners ---
+      const btnToggleBulk = document.getElementById('btn-toggle-bulk');
+      const bulkAddPanel = document.getElementById('bulk-add-panel');
+      if (btnToggleBulk && bulkAddPanel) {
+        btnToggleBulk.onclick = () => {
+          bulkAddPanel.classList.toggle('hidden');
+          if (!bulkAddPanel.classList.contains('hidden')) {
+              bulkAddPanel.scrollIntoView({ behavior: "smooth" });
+              renderBulkTargets();
+          }
+        };
+      }
+
+      const bulkTargetCat = document.getElementById('bulk-target-category');
+      if (bulkTargetCat) bulkTargetCat.onchange = window.renderBulkTargets;
+
+      const btnBulkAll = document.getElementById('btn-bulk-select-all');
+      if (btnBulkAll) btnBulkAll.onclick = () => document.querySelectorAll('.bulk-chk').forEach(cb => cb.checked = true);
+      
+      const btnBulkNone = document.getElementById('btn-bulk-select-none');
+      if (btnBulkNone) btnBulkNone.onclick = () => document.querySelectorAll('.bulk-chk').forEach(cb => cb.checked = false);
+
+      const btnBulkApply = document.getElementById('btn-bulk-apply');
+      if (btnBulkApply) {
+        btnBulkApply.onclick = async () => {
+          const ingSearch = document.getElementById('bulk-ing-name').value;
+          const qty = parseFloat(document.getElementById('bulk-ing-qty').value);
+          
+          const matchedIng = allItemsGlobal.find(i => `${i.name} (${i.type === 'raw_material' ? 'M.Prima' : 'Elab.'})` === ingSearch);
+          
+          if (!matchedIng) return await customAlert("Seleccioná un insumo válido de la lista desplegable.");
+          if (isNaN(qty) || qty <= 0) return await customAlert("Ingresá una cantidad válida mayor a cero.");
+          
+          const selectedIds = Array.from(document.querySelectorAll('.bulk-chk:checked')).map(cb => cb.value);
+          
+          if (selectedIds.length === 0) return await customAlert("Seleccioná al menos un producto de destino de la lista de la derecha.");
+          
+          const confirm = await customConfirm(`¿Estás seguro de que deseas agregar ${qty} de "${matchedIng.name}" a los ${selectedIds.length} productos seleccionados? Si alguno ya lo tenía, se actualizará su cantidad.`, "Confirmar Carga Masiva");
+          if (!confirm) return;
+          
+          showLoading(true);
+          const updates = selectedIds.map(pid => ({
+              product_id: pid,
+              ingredient_id: matchedIng.id,
+              quantity: qty
+          }));
+          
+          const { error } = await supabase.from('recipes').upsert(updates, { onConflict: 'product_id, ingredient_id' });
+          
+          if (!error) {
+              await customAlert(`¡Carga masiva finalizada! Se procesaron ${selectedIds.length} recetas.`, "Éxito");
+              document.getElementById('bulk-ing-name').value = '';
+              await loadRecipesView();
+          } else {
+              await customAlert("Hubo un error técnico en el proceso masivo: " + error.message, "Error de Servidor");
+          }
+          showLoading(false);
+        };
       }
 
       showLoading(true);
