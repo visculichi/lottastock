@@ -323,7 +323,14 @@
                 <input type="number" id="mov-qty" min="0.1" step="0.1" value="1">
               </div>
             </div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
+            <div id="mov-decompose-container" class="hidden" style="margin-top:15px; background:rgba(239, 68, 68, 0.05); padding:10px; border:1px solid rgba(239, 68, 68, 0.2); border-radius:8px;">
+               <div style="display:flex; align-items:center;">
+                  <input type="checkbox" id="mov-decompose" style="width:18px; height:18px; margin-right:10px;">
+                  <label for="mov-decompose" style="margin:0; font-size:13px; color:#f87171; font-weight:bold; cursor:pointer;">Explosionar Receta (Merma por ingredientes)</label>
+               </div>
+               <p style="font-size:11px; color:var(--text-muted); margin-top:5px; padding-left:28px;">* Usa esta opción si querés descontar los insumos base (ej. Blend de carne) en lugar del producto terminado.</p>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
               <button class="btn btn-primary" id="btn-save-movement" style="flex:1;">Registrar Movimiento Simple</button>
               <button class="btn btn-secondary" id="btn-open-production" style="flex:1; border-color:#8b5cf6; color:#a78bfa;">🔨 Registrar Elaboración (Producción)</button>
             </div>
@@ -338,8 +345,14 @@
                <label>¿Qué vas a fabricar/preparar?</label>
                <select id="prod-item-id" style="margin-bottom:15px; background:rgba(0,0,0,0.3); border:1px solid #8b5cf6;"></select>
                
-               <label>Cantidad Resultante (Unidades/Gr)</label>
-               <input type="number" id="prod-qty" placeholder="Ej: 100" style="font-size:20px; font-weight:bold; color:#a78bfa; background:rgba(0,0,0,0.3); border:1px solid #8b5cf6;">
+               <label>OPCIÓN A: Cantidad Resultante (Unidades/Gr)</label>
+               <input type="number" id="prod-qty" placeholder="Ej: 100" style="font-size:20px; font-weight:bold; color:#a78bfa; background:rgba(0,0,0,0.3); border:1px solid #8b5cf6; margin-bottom:10px;">
+               
+               <div id="prod-conversion-container" class="hidden" style="margin-bottom:15px; background:rgba(187, 147, 92, 0.05); padding:12px; border:1px solid rgba(187, 147, 92, 0.2); border-radius:10px;">
+                  <label id="label-consumed" style="color:var(--primary-color); font-weight:bold; font-size:12px; margin-bottom:5px;">OPCIÓN B: Conversión por Peso Consumido</label>
+                  <input type="number" id="prod-consumed" placeholder="Cargá los gramos usados..." style="font-size:18px; background:rgba(0,0,0,0.4); border:1px solid var(--primary-color); margin-bottom:0;">
+                  <p style="font-size:11px; color:var(--text-muted); margin-top:5px;">* Si ponés los gramos acá, arriba se calculan las unidades (y viceversa).</p>
+               </div>
                
                <div id="prod-recipe-preview" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; margin-bottom:15px; font-size:12px; text-align:left; border:1px dashed rgba(255,255,255,0.1);">
                   <p style="color:var(--text-muted);">Elegí un producto para ver qué insumos descontará...</p>
@@ -355,6 +368,7 @@
           <div class="glass-panel w-full">
             <div class="action-bar flex-between" style="margin-bottom:15px;">
               <h3>Inventario Actual</h3>
+              <input type="text" id="inventory-search" placeholder="🔎 Buscar producto en stock..." style="width:100%; max-width:300px; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:white; padding:10px; border-radius:8px; margin-bottom:0;">
             </div>
             <table class="data-table">
               <thead>
@@ -384,10 +398,11 @@
                   <th>Cant.</th>
                   <th>Tipo de Transacción</th>
                   <th>Nota / Origen</th>
+                  <th style="text-align:center;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="kardex-tbody">
-                <tr><td colspan="5">Cargando movimientos...</td></tr>
+                <tr><td colspan="6">Cargando movimientos...</td></tr>
               </tbody>
             </table>
           </div>
@@ -544,9 +559,15 @@
               </div>
             </div>
 
-            <div style="margin-top:15px; display:flex; align-items:center;">
-              <input type="checkbox" id="abm-recipe-is-sale" checked style="width:18px; height:18px; margin-right:10px;">
-              <label for="abm-recipe-is-sale" style="margin:0; font-size:14px; cursor:pointer;">Mostrar en Punto de Venta (Venta al Público)</label>
+            <div style="margin-top:15px; display:flex; gap:30px; align-items:center;">
+              <div style="display:flex; align-items:center;">
+                <input type="checkbox" id="abm-recipe-is-sale" checked style="width:18px; height:18px; margin-right:10px;">
+                <label for="abm-recipe-is-sale" style="margin:0; font-size:14px; cursor:pointer;">Mostrar en Punto de Venta (Venta al Público)</label>
+              </div>
+              <div style="display:flex; align-items:center;">
+                <input type="checkbox" id="abm-recipe-is-production" style="width:18px; height:18px; margin-right:10px;">
+                <label for="abm-recipe-is-production" style="margin:0; font-size:14px; cursor:pointer; color:#a78bfa; font-weight:bold;">⚡ Permitir Registro de Elaboración en Inventario</label>
+              </div>
             </div>
             
             <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">
@@ -1054,6 +1075,7 @@
     const abmRecipeImage = document.getElementById('abm-recipe-image');
     const abmRecipeZoom = document.getElementById('abm-recipe-zoom');
     const abmRecipeIsSale = document.getElementById('abm-recipe-is-sale');
+    const abmRecipeIsProduction = document.getElementById('abm-recipe-is-production');
     const abmRecipeYield = document.getElementById('abm-recipe-yield');
     const abmRecipeUnit = document.getElementById('abm-recipe-unit');
     const abmRecipeIng = document.getElementById('abm-recipe-ingredient');
@@ -1084,6 +1106,10 @@
     let currentTicketItems = [];
     let currentRecipeItems = [];
     let defaultDepositId = null;
+
+    let latestInventoryData = [];
+    let thresholdMapGlobal = {};
+    let totalStockByItemGlobal = {};
 
     function showLoading(show) {
       if (show) loadingEl.classList.remove('hidden');
@@ -1272,8 +1298,21 @@
       }
     }
 
-    async function registerMovement(type, itemId, depositId, quantity, costOrNotes) {
+    async function registerMovement(type, itemId, depositId, quantity, costOrNotes, decompose = false) {
       try {
+        if (decompose && type === 'out_waste') {
+           // Fetch recipe to explode
+           const { data: recipe } = await supabase.from('recipes').select('ingredient_id, quantity, items!recipes_ingredient_id_fkey(name, unit)').eq('product_id', itemId);
+           if (recipe && recipe.length > 0) {
+              const { data: parent } = await supabase.from('items').select('name').eq('id', itemId).single();
+              for (const ing of recipe) {
+                 const consumedQty = quantity * ing.quantity;
+                 await registerMovement('out_waste', ing.ingredient_id, depositId, consumedQty, `Merma descompuesta de receta: ${parent.name}`);
+              }
+              return { success: true };
+           }
+        }
+
         const isOut = ['out_waste', 'adjustment_final', 'sale_deduction', 'production_input'].includes(type)
         const invMod = isOut ? -quantity : quantity
 
@@ -1306,13 +1345,13 @@
       return { success: !error, error };
     }
 
-    async function saveRecipeProduct(name, ingredients, price, category, isSale, rYield, rUnit, threshold, imageUrl, imageZoom) {
+    async function saveRecipeProduct(name, ingredients, price, category, isSale, rYield, rUnit, threshold, imageUrl, imageZoom, isProduction) {
       const typeStr = isSale ? 'final_product' : 'assembled';
       const payload = { 
         name, unit: rUnit, type: typeStr, bulk_name: 'Rendimiento', 
         bulk_size: rYield, sale_price: price, category: category, 
         low_stock_threshold: threshold, image_url: imageUrl,
-        image_zoom: imageZoom
+        image_zoom: imageZoom, is_production: isProduction
       };
       let productId = editingRecipeId;
       let error = null;
@@ -1402,6 +1441,7 @@
        abmRecipePrice.value = item.sale_price || 0;
        abmRecipeCategory.value = item.category || 'Hamburguesas';
        abmRecipeIsSale.checked = item.type === 'final_product';
+       abmRecipeIsProduction.checked = !!item.is_production;
        abmRecipeYield.value = item.bulk_size || 1;
        abmRecipeUnit.value = item.unit || 'unidades';
        abmRecipeThreshold.value = item.low_stock_threshold || 0;
@@ -1461,6 +1501,7 @@
       editingRecipeId = null;
       abmRecipeName.value = ''; abmRecipePrice.value = '0'; abmRecipeCategory.value = 'Hamburguesas'; abmRecipeIsSale.checked = true;
       abmRecipeYield.value = '1'; abmRecipeUnit.value = 'unidades';
+      abmRecipeIsProduction.checked = false;
       abmRecipeThreshold.value = '0';
       abmRecipeImage.value = '';
       abmRecipeZoom.value = '1';
@@ -1581,33 +1622,82 @@
 
     async function loadInventoryView() {
       showLoading(true);
-      const movList = document.getElementById('mov-item-list');
-      if (movList && movList.options.length === 0) {
-        const { data: items } = await supabase.from('items').select('*');
-        if(items) {
-          allItemsGlobal = items;
+      const { data: items } = await supabase.from('items').select('*');
+      if(items) {
+        allItemsGlobal = items;
+        const movList = document.getElementById('mov-item-list');
+        if (movList) {
           movList.innerHTML = items.map(i => `<option value="${i.name} (${i.unit})"></option>`).join('');
         }
       }
 
       const inv = await getInventory();
-      const { data: rawItems } = await supabase.from('items').select('id, low_stock_threshold');
-      const thresholdMap = {};
-      if (rawItems) rawItems.forEach(i => thresholdMap[i.id] = i.low_stock_threshold);
+      thresholdMapGlobal = {};
+      if (allItemsGlobal) allItemsGlobal.forEach(i => thresholdMapGlobal[i.id] = i.low_stock_threshold);
 
-      if (inv.length === 0) {
-        invTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay stock registrado</td></tr>';
+      totalStockByItemGlobal = {};
+      inv.forEach(i => {
+           if (!totalStockByItemGlobal[i.item_id]) totalStockByItemGlobal[i.item_id] = 0;
+           totalStockByItemGlobal[i.item_id] += i.quantity;
+      });
+
+      latestInventoryData = inv;
+      renderInventoryTable();
+      
+      const kardexTbody = document.getElementById('kardex-tbody');
+      if (kardexTbody) {
+        const { data: kardex } = await supabase.from('stock_movements').select('*, items(name, unit)').order('created_at', { ascending: false }).limit(50);
+        if (!kardex || kardex.length === 0) {
+          kardexTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay historial de movimientos.</td></tr>';
+        } else {
+          const isAdmin = localStorage.getItem('role') === 'admin';
+          kardexTbody.innerHTML = kardex.map(m => {
+            const d = new Date(m.created_at).toLocaleString('es-AR', {dateStyle: 'short', timeStyle: 'short'});
+            let typeBadge = '';
+            let valColor = 'white';
+            let formattedQty = m.quantity;
+            if (m.movement_type === 'in_purchase') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🟢 Ingreso Compra</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'adjustment_initial') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📈 Ajuste/Conteo Inicial</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'out_waste') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔴 Merma / Descarte</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
+            else if (m.movement_type === 'adjustment_final') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📉 Ajuste Stock Final</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
+            else if (m.movement_type === 'sale_deduction') { typeBadge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🍔 Consumo Venta (Ticket)</span>'; valColor = '#f59e0b'; formattedQty = '-' + m.quantity; }
+            else if (m.movement_type === 'system_rollback') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">⏪ Reversión Venta Admin</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'production_yield') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔨 Preparación Finalizada</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
+            else if (m.movement_type === 'production_input') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🥩 Consumo Elaboración</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
+            else typeBadge = `<span style="color:var(--text-muted); font-size:12px;">${m.movement_type}</span>`;
+            
+            const actionBtns = isAdmin ? `
+              <div style="display:flex; justify-content:center; gap:5px;">
+                <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.editInventoryMovement('${m.id}')" title="Editar este movimiento">✏️</button>
+                <button class="btn" style="padding:4px 8px; font-size:11px; color:red; border:1px solid rgba(239,68,68,0.3);" onclick="window.deleteInventoryMovement('${m.id}')" title="Borrar y revertir stock">🗑️</button>
+              </div>
+            ` : '-';
+
+            return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="color:var(--text-muted); font-size:13px;">${d}</td>
+              <td style="font-weight:bold;">${m.items?.name || '-'} <br><span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(${m.items?.unit || ''})</span></td>
+              <td style="color:${valColor}; font-family:monospace; font-size:15px; font-weight:bold;">${formattedQty}</td>
+              <td>${typeBadge}</td>
+              <td style="font-size:12px; color:var(--text-muted);">${m.notes || ''} ${m.reference_id ? '<br><span style="color:var(--text-muted); font-size:10px;">(Ref: '+m.reference_id+')</span>' : ''}</td>
+              <td style="text-align:center;">${actionBtns}</td>
+            </tr>`;
+          }).join('');
+        }
+      }
+      
+      showLoading(false);
+    }
+
+    function renderInventoryTable() {
+      const searchTerm = document.getElementById('inventory-search')?.value.toLowerCase() || '';
+      const filtered = latestInventoryData.filter(i => (i.items?.name || '').toLowerCase().includes(searchTerm) || (i.deposits?.name || '').toLowerCase().includes(searchTerm));
+      
+      if (filtered.length === 0) {
+        invTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">${latestInventoryData.length === 0 ? 'No hay stock registrado' : 'No se encontraron productos coincidentes'}</td></tr>`;
       } else {
-        // Aggregate stock to check thresholds
-        const totalStockByItem = {};
-        inv.forEach(i => {
-           if (!totalStockByItem[i.item_id]) totalStockByItem[i.item_id] = 0;
-           totalStockByItem[i.item_id] += i.quantity;
-        });
-
         const isAdmin = localStorage.getItem('role') === 'admin';
-        invTbody.innerHTML = inv.map(i => {
-          const isLow = thresholdMap[i.item_id] && totalStockByItem[i.item_id] <= thresholdMap[i.item_id];
+        invTbody.innerHTML = filtered.map(i => {
+          const isLow = thresholdMapGlobal[i.item_id] && totalStockByItemGlobal[i.item_id] <= thresholdMapGlobal[i.item_id];
           const actionBtns = isAdmin ? `
               <div style="display:flex; justify-content:center; gap:5px;">
                 <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.editInventoryStock('${i.id}')" title="Editar Cantidad">✏️</button>
@@ -1624,41 +1714,10 @@
           </tr>`;
         }).join('');
       }
-      
-      const kardexTbody = document.getElementById('kardex-tbody');
-      if (kardexTbody) {
-        const { data: kardex } = await supabase.from('stock_movements').select('*, items(name, unit)').order('created_at', { ascending: false }).limit(50);
-        if (!kardex || kardex.length === 0) {
-          kardexTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay historial de movimientos.</td></tr>';
-        } else {
-          kardexTbody.innerHTML = kardex.map(m => {
-            const d = new Date(m.created_at).toLocaleString('es-AR', {dateStyle: 'short', timeStyle: 'short'});
-            let typeBadge = '';
-            let valColor = 'white';
-            let formattedQty = m.quantity;
-            if (m.movement_type === 'in_purchase') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🟢 Ingreso Compra</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'adjustment_initial') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📈 Ajuste/Conteo Inicial</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'out_waste') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔴 Merma / Descarte</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
-            else if (m.movement_type === 'adjustment_final') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📉 Ajuste Stock Final</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
-            else if (m.movement_type === 'sale_deduction') { typeBadge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🍔 Consumo Venta (Ticket)</span>'; valColor = '#f59e0b'; formattedQty = '-' + m.quantity; }
-            else if (m.movement_type === 'system_rollback') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">⏪ Reversión Venta Admin</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'production_yield') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔨 Preparación Finalizada</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'production_input') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🥩 Consumo Elaboración</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
-            else typeBadge = `<span style="color:var(--text-muted); font-size:12px;">${m.movement_type}</span>`;
-            
-            return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-              <td style="color:var(--text-muted); font-size:13px;">${d}</td>
-              <td style="font-weight:bold;">${m.items?.name || '-'} <br><span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(${m.items?.unit || ''})</span></td>
-              <td style="color:${valColor}; font-family:monospace; font-size:15px; font-weight:bold;">${formattedQty}</td>
-              <td>${typeBadge}</td>
-              <td style="font-size:12px; color:var(--text-muted);">${m.notes || ''} ${m.reference_id ? '<br><span style="color:var(--text-muted); font-size:10px;">(Ref: '+m.reference_id+')</span>' : ''}</td>
-            </tr>`;
-          }).join('');
-        }
-      }
-      
-      showLoading(false);
     }
+
+    const invSearchInput = document.getElementById('inventory-search');
+    if (invSearchInput) invSearchInput.addEventListener('input', renderInventoryTable);
 
     window.editInventoryStock = async (invId) => {
       showLoading(true);
@@ -1722,6 +1781,82 @@
           notes: "Stock reseteado a 0 por Admin"
         });
       }
+      await loadInventoryView();
+      showLoading(false);
+    }
+
+    window.deleteInventoryMovement = async (id) => {
+      const conf = await customConfirm("¿Seguro que deseas ELIMINAR este registro de movimiento y REVERTIR el stock?", "⚠️ Borrar Movimiento");
+      if(!conf) return;
+      showLoading(true);
+      
+      const { data: m, error: mError } = await supabase.from('stock_movements').select('*').eq('id', id).single();
+      if(mError || !m) {
+        await customAlert("No se encontró el movimiento");
+        showLoading(false);
+        return;
+      }
+      
+      const isOut = ['out_waste', 'adjustment_final', 'sale_deduction', 'production_input'].includes(m.movement_type);
+      const depositId = isOut ? m.from_deposit_id : m.to_deposit_id;
+      const invMod = isOut ? -m.quantity : m.quantity;
+      
+      const { data: inv } = await supabase.from('inventory').select('quantity').eq('item_id', m.item_id).eq('deposit_id', depositId).maybeSingle();
+      if(inv) {
+        await supabase.from('inventory').update({ quantity: Number(inv.quantity) - invMod }).eq('item_id', m.item_id).eq('deposit_id', depositId);
+      }
+      
+      const { error: delError } = await supabase.from('stock_movements').delete().eq('id', id);
+      if(delError) {
+        await customAlert("Error al borrar: " + delError.message);
+      } else {
+        await customAlert("Movimiento eliminado y stock revertido.");
+      }
+      
+      await loadInventoryView();
+      showLoading(false);
+    }
+
+    window.editInventoryMovement = async (id) => {
+      showLoading(true);
+      const { data: m, error: mError } = await supabase.from('stock_movements').select('*').eq('id', id).single();
+      if(mError || !m) {
+        await customAlert("No se encontró el movimiento");
+        showLoading(false);
+        return;
+      }
+      showLoading(false);
+      
+      const newQtyStr = await window.customPrompt(`Nuevo valor para ${m.quantity} (se reajustará el stock):`, "Editar Movimiento", "number");
+      if(newQtyStr === null || newQtyStr === "") return;
+      
+      const newQty = parseFloat(newQtyStr);
+      if(isNaN(newQty)) return;
+      
+      showLoading(true);
+      const isOut = ['out_waste', 'adjustment_final', 'sale_deduction', 'production_input'].includes(m.movement_type);
+      const depositId = isOut ? m.from_deposit_id : m.to_deposit_id;
+      
+      const oldInvMod = isOut ? -m.quantity : m.quantity;
+      const newInvMod = isOut ? -newQty : newQty;
+      const diff = newInvMod - oldInvMod;
+      
+      const { data: inv } = await supabase.from('inventory').select('quantity').eq('item_id', m.item_id).eq('deposit_id', depositId).maybeSingle();
+      if(inv) {
+        await supabase.from('inventory').update({ quantity: Number(inv.quantity) + diff }).eq('item_id', m.item_id).eq('deposit_id', depositId);
+      }
+      
+      const { error: updError } = await supabase.from('stock_movements').update({ 
+        quantity: newQty, 
+        notes: (m.notes || "") + " [Editado por Admin]" 
+      }).eq('id', id);
+      
+      if(updError) {
+        await customAlert("Error al actualizar: " + updError.message);
+      } else {
+        await customAlert("Registro actualizado y stock calibrado.");
+      }
+      
       await loadInventoryView();
       showLoading(false);
     }
@@ -3249,15 +3384,29 @@
         showLoading(false);
       });
 
-      if (btnSaveMov) {
+      if (movItem) {
+         movItem.addEventListener('input', () => {
+           const searchText = movItem.value;
+           const matchedItem = allItemsGlobal.find(i => `${i.name} (${i.unit})` === searchText);
+           const decompContainer = document.getElementById('mov-decompose-container');
+           if (matchedItem && (matchedItem.type === 'assembled' || matchedItem.type === 'final_product')) {
+              decompContainer.classList.remove('hidden');
+           } else {
+              decompContainer.classList.add('hidden');
+              document.getElementById('mov-decompose').checked = false;
+           }
+         });
+       }
+
+       if (btnSaveMov) {
         btnSaveMov.addEventListener('click', async () => {
-          if (!defaultDepositId) { await customAlert("Falta dar de alta un Depósito en Supabase."); return; }
-          const t = movType.value;
+          const t = document.getElementById('mov-type').value;
+          const q = parseFloat(document.getElementById('mov-qty').value);
           const searchText = movItem.value;
-          const q = parseFloat(movQty.value);
+          const matchedItem = allItemsGlobal.find(i => `${i.name} (${i.unit})` === searchText);
+          const isDecompose = document.getElementById('mov-decompose')?.checked;
           
-          const matchedItem = allItemsGlobal.find(it => `${it.name} (${it.unit})` === searchText);
-          if (!matchedItem) { await customAlert('Escribe y asegura un insumo de la lista desplegable autocompletada.'); return; }
+          if (!matchedItem) { await customAlert('Elige un insumo válido de la lista.'); return; }
           
           const i = matchedItem.id;
           if (!i || isNaN(q) || q<=0) { await customAlert('Elige un insumo y cantidad válida.'); return; }
@@ -3271,11 +3420,14 @@
           
           showLoading(true);
           btnSaveMov.disabled = true;
-          const res = await registerMovement(t, i, defaultDepositId, finalQty, 'Movimiento manual');
+          const res = await registerMovement(t, i, defaultDepositId, finalQty, 'Movimiento manual', isDecompose);
           if (res.success) {
-            await customAlert(mode === 'bulk' ? `Movimiento registrado con éxito. Se multiplicó X${matchedItem.bulk_size || 1} al ser carga por Bulto Cerrado.` : 'Movimiento registrado de forma unitaria directa.', "Ingreso Validado");
+            await customAlert(isDecompose ? `Merma por receta (explosión) registrada con éxito.` : (mode === 'bulk' ? `Movimiento registrado con éxito. Se multiplicó X${matchedItem.bulk_size || 1} al ser carga por Bulto Cerrado.` : 'Movimiento registrado de forma unitaria directa.'), "Ingreso Validado");
             movItem.value = '';
             movQty.value = '1';
+            const decompContainer = document.getElementById('mov-decompose-container');
+            if (decompContainer) decompContainer.classList.add('hidden');
+            document.getElementById('mov-decompose').checked = false;
             await loadInventoryView();
           } else {
             await customAlert('Error guardando el movimiento.', "Error");
@@ -3300,12 +3452,8 @@
           const { data: recipeCheck } = await supabase.from('recipes').select('product_id');
           const productIdsWithRecipe = [...new Set(recipeCheck.map(r => r.product_id))];
           
-          const { data: allElaborables } = await supabase.from('items').select('id, name, unit, bulk_size').in('id', productIdsWithRecipe).order('name');
-          // HARD FILTER: Only items with 'medallon' in the name, EXCLUDING extras
-          const elaborables = (allElaborables || []).filter(e => {
-            const n = e.name.toLowerCase();
-            return (n.includes('medallón') || n.includes('medallon')) && !n.includes('extra');
-          });
+          const { data: allElaborables } = await supabase.from('items').select('id, name, unit, bulk_size').eq('is_production', true).order('name');
+          const elaborables = allElaborables || [];
           
           if (elaborables.length > 0) {
             prodSelector.innerHTML = '<option value="">-- Seleccionar --</option>' + 
@@ -3318,27 +3466,54 @@
 
       if (btnCloseProd) btnCloseProd.addEventListener('click', () => prodModal.classList.add('hidden'));
 
-      async function updateProductionPreview() {
+      async function updateProductionPreview(fromCalc = false) {
         const itemId = prodSelector.value;
-        const qty = parseFloat(prodQtyInput.value) || 0;
-        if (!itemId || qty <= 0) {
+        const calcInput = document.getElementById('prod-consumed');
+        const calcContainer = document.getElementById('prod-conversion-container');
+        const calcLabel = document.getElementById('label-consumed');
+
+        if (!itemId) {
           prodPreview.innerHTML = '<p style="color:var(--text-muted);">Ingresá cantidad para ver desglose.</p>';
+          calcContainer.classList.add('hidden');
           return;
         }
 
         const selected = prodSelector.options[prodSelector.selectedIndex];
         const nominalYield = parseFloat(selected.getAttribute('data-yield')) || 1;
-        const multiplier = qty / nominalYield;
 
         const { data: recipe } = await supabase.from('recipes').select('quantity, items!recipes_ingredient_id_fkey(name, unit)').eq('product_id', itemId);
+        
+        if (recipe && recipe.length > 0) {
+           const firstIng = recipe[0];
+           calcContainer.classList.remove('hidden');
+           calcLabel.innerText = `OPCIÓN B: ¿Cúantos ${firstIng.items.unit} de ${firstIng.items.name} usaste?`;
+           
+           if (fromCalc) {
+              const consumedVal = parseFloat(calcInput.value) || 0;
+              // Conversion: (Consumed / RecipeAmount) * Yield
+              const calculatedQty = (consumedVal / firstIng.quantity) * nominalYield;
+              prodQtyInput.value = calculatedQty.toFixed(1);
+           } else {
+              const qtyVal = parseFloat(prodQtyInput.value) || 0;
+              calcInput.value = ((qtyVal / nominalYield) * firstIng.quantity).toFixed(1);
+           }
+        } else {
+           calcContainer.classList.add('hidden');
+        }
+
+        const qty = parseFloat(prodQtyInput.value) || 0;
+        const multiplier = qty / nominalYield;
+
         if (recipe) {
           prodPreview.innerHTML = '<strong>Consumo estimado de stock:</strong><br>' + 
             recipe.map(r => `• ${r.items.name}: <span style="color:#ef4444;">-${(r.quantity * multiplier).toFixed(2)} ${r.items.unit}</span>`).join('<br>');
         }
       }
 
-      if (prodSelector) prodSelector.onchange = updateProductionPreview;
-      if (prodQtyInput) prodQtyInput.oninput = updateProductionPreview;
+      if (prodSelector) prodSelector.onchange = () => updateProductionPreview();
+      if (prodQtyInput) prodQtyInput.oninput = () => updateProductionPreview(false);
+      const prodConsumedInput = document.getElementById('prod-consumed');
+      if (prodConsumedInput) prodConsumedInput.oninput = () => updateProductionPreview(true);
 
       if (btnConfirmProd) {
         btnConfirmProd.addEventListener('click', async () => {
@@ -3426,9 +3601,10 @@
           const rTh = abmRecipeThreshold.value || 0;
           const rImg = abmRecipeImage.value || null;
           const rZoom = parseFloat(abmRecipeZoom.value) || 1;
+          const isProduction = abmRecipeIsProduction.checked;
           if (!name || currentRecipeItems.length === 0) { await customAlert('Debes ingresar el nombre y al menos un ingrediente.'); return; }
           showLoading(true);
-          const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit, Number(rTh) || 0, rImg, rZoom);
+          const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit, Number(rTh) || 0, rImg, rZoom, isProduction);
           if (success) {
             await customAlert(editingRecipeId ? 'Receta actualizada exitosamente.' : 'Receta creada exitosamente.', "Éxito");
             resetRecipeForm();
