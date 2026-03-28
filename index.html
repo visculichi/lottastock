@@ -363,10 +363,11 @@
                   <th>Artículo / Insumo</th>
                   <th>Cantidad</th>
                   <th>Unidad</th>
+                  <th style="text-align:center;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="inventory-tbody">
-                <tr><td colspan="4">Cargando...</td></tr>
+                <tr><td colspan="5">Cargando...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1604,13 +1605,22 @@
            totalStockByItem[i.item_id] += i.quantity;
         });
 
+        const isAdmin = localStorage.getItem('role') === 'admin';
         invTbody.innerHTML = inv.map(i => {
           const isLow = thresholdMap[i.item_id] && totalStockByItem[i.item_id] <= thresholdMap[i.item_id];
+          const actionBtns = isAdmin ? `
+              <div style="display:flex; justify-content:center; gap:5px;">
+                <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.editInventoryStock('${i.id}')" title="Editar Cantidad">✏️</button>
+                <button class="btn" style="padding:4px 8px; font-size:11px; color:red; border:1px solid rgba(239,68,68,0.3);" onclick="window.deleteInventoryStock('${i.id}')" title="Resetear a 0">🗑️</button>
+              </div>
+            ` : '-';
+
           return `<tr class="${isLow ? 'row-low-stock' : ''}">
             <td>${i.deposits?.name || '-'}</td>
             <td>${i.items?.name || '-'} ${isLow ? '<span style="color:#ef4444; font-size:10px; font-weight:bold; margin-left:5px;">(Stock Bajo)</span>' : ''}</td>
             <td style="font-weight:bold;">${i.quantity}</td>
             <td>${i.items?.unit || '-'}</td>
+            <td style="text-align:center;">${actionBtns}</td>
           </tr>`;
         }).join('');
       }
@@ -1647,6 +1657,72 @@
         }
       }
       
+      showLoading(false);
+    }
+
+    window.editInventoryStock = async (invId) => {
+      showLoading(true);
+      const { data: invLine, error: invError } = await supabase.from('inventory').select('*, items(name)').eq('id', invId).single();
+      if(invError || !invLine) {
+        await customAlert("No se encontró el registro de stock");
+        showLoading(false);
+        return;
+      }
+      showLoading(false);
+      
+      const newQtyStr = await window.customPrompt(`Nuevo stock físico para ${invLine.items?.name}:`, "Modificación Manual Admin", "number");
+      if(newQtyStr === null || newQtyStr === "") return;
+      
+      const newQty = parseFloat(newQtyStr);
+      if(isNaN(newQty)) return;
+      
+      showLoading(true);
+      const diff = newQty - invLine.quantity;
+      if (diff === 0) {
+         showLoading(false);
+         return;
+      }
+
+      const { error: updError } = await supabase.from('inventory').update({ quantity: newQty }).eq('id', invId);
+      
+      if(!updError) {
+        // Log to Kárdex
+        const typeStr = diff > 0 ? 'adjustment_initial' : 'adjustment_final';
+        await supabase.from('stock_movements').insert({
+          movement_type: typeStr,
+          item_id: invLine.item_id,
+          to_deposit_id: diff > 0 ? invLine.deposit_id : null,
+          from_deposit_id: diff < 0 ? invLine.deposit_id : null,
+          quantity: Math.abs(diff),
+          notes: "Modificación manual de stock por Admin"
+        });
+        await customAlert("Stock actualizado y registrado en Kárdex.");
+      } else {
+        await customAlert("Error: " + updError.message);
+      }
+      
+      await loadInventoryView();
+      showLoading(false);
+    }
+
+    window.deleteInventoryStock = async (invId) => {
+      const conf = await customConfirm("¿Seguro que deseas ELIMINAR este registro de stock? (Se reseteará a 0 y quedará registrado)", "Resetear Stock");
+      if(!conf) return;
+      
+      showLoading(true);
+      const { data: invLine } = await supabase.from('inventory').select('*').eq('id', invId).single();
+      if(invLine) {
+        const diff = -invLine.quantity;
+        await supabase.from('inventory').update({ quantity: 0 }).eq('id', invId);
+        await supabase.from('stock_movements').insert({
+          movement_type: 'adjustment_final',
+          item_id: invLine.item_id,
+          from_deposit_id: invLine.deposit_id,
+          quantity: Math.abs(diff),
+          notes: "Stock reseteado a 0 por Admin"
+        });
+      }
+      await loadInventoryView();
       showLoading(false);
     }
 
@@ -2037,6 +2113,7 @@
           <div style="display:flex; gap:2px; align-items:center;">
             ${upBtn}
             ${downBtn}
+            <button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:12px; margin-left:8px;" onclick="window.editRecipeItem(${index})" title="Editar Gramaje">✏️</button>
             <button class="btn" style="padding:2px 8px; color:red; background:none; margin-left:8px;" onclick="window.removeRecipeItem(${index})">X</button>
           </div>
         </div>`;
@@ -2044,6 +2121,15 @@
       const yieldAmt = parseFloat(abmRecipeYield?.value) || 1;
       const unitStr = abmRecipeUnit?.value || 'unidades';
       recipeList.innerHTML = htmlRows + `<div style="text-align:right; font-weight:bold; font-size:16px; margin-top:12px; color:var(--primary-color);">Costo Total Receta: ${formatCurrency(totalCost)}<br><span style="font-size:12px; color:var(--text-muted);">Costo neto por ${unitStr} (Rinde ${yieldAmt}): ${formatCurrency(totalCost / yieldAmt)}</span></div>`;
+    }
+
+    window.editRecipeItem = async (index) => {
+      const item = currentRecipeItems[index];
+      const newQty = await window.customPrompt(`Nuevo gramaje para ${item.name}:`, "Editar Cantidad", "number");
+      if (newQty !== null && newQty !== "" && !isNaN(newQty)) {
+        currentRecipeItems[index].qty = parseFloat(newQty);
+        renderRecipeList();
+      }
     }
 
     window.removeRecipeItem = (index) => {
