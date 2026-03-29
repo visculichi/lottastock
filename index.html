@@ -33,6 +33,7 @@
         <li class="admin-only"><a href="#" id="nav-recipes">Gestor de Recetas</a></li>
         <li class="admin-only"><a href="#" id="nav-history"><span class="icon">📜</span> Historial de Ventas</a></li>
         <li class="admin-only"><a href="#" id="nav-calculator"><span class="icon">🧮</span> Calculadora CMV Real</a></li>
+        <li class="admin-only"><a href="#" id="nav-eerr"><span class="icon">📈</span> Estado de Resultados (EERR)</a></li>
         <li class="admin-only"><a href="#" id="nav-zreport"><span class="icon">💰</span> Reporte Z y Gestión</a></li>
         <li class="admin-only"><a href="#" id="nav-analytics"><span class="icon">📊</span> Análisis y Proyecciones</a></li>
         <li class="admin-only"><a href="#" id="nav-procurement"><span class="icon">🛒</span> Planificador de Compras</a></li>
@@ -749,28 +750,45 @@
             <h2>💰 Reporte Z y Control de Gestión</h2>
             <p>Cruza tu facturación manual con el costo de insumos real.</p>
           </div>
-          <div style="display:flex; gap:10px;">
-             <input type="date" id="z-report-date" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white;">
-             <select id="z-report-shift" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:130px;">
-                <option value="Día">☀️ Diurno</option>
-                <option value="Noche">🌙 Nocturno</option>
-                <option value="Todo">📊 Todo el Día</option>
-             </select>
-             <button class="btn btn-primary" id="btn-load-z-data">🚀 Analizar Turno</button>
-             <button class="btn btn-secondary" id="btn-open-z-bulk" style="border-color:#8b5cf6; color:#8b5cf6;">📁 Carga Masiva Mensual</button>
+          <div style="display:flex; gap:12px; align-items:flex-end;">
+             <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:10px; color:var(--text-muted); font-weight:bold; letter-spacing:1px;">📅 DESDE</label>
+                <input type="date" id="z-from-date" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:145px;">
+             </div>
+             <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:10px; color:var(--text-muted); font-weight:bold; letter-spacing:1px;">📅 HASTA</label>
+                <input type="date" id="z-to-date" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:145px;">
+             </div>
+             <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:10px; color:var(--text-muted); font-weight:bold; letter-spacing:1px;">🕒 TURNO</label>
+                <select id="z-report-shift" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:110px;">
+                   <option value="Todo">Todo el Día</option>
+                   <option value="Día">☀️ Diurno</option>
+                   <option value="Noche">🌙 Nocturno</option>
+                </select>
+             </div>
+             <button class="btn btn-primary" id="btn-load-z-data" style="height:42px; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; font-weight:bold; white-space:nowrap; min-width:140px;">
+                <span>🚀</span> Analizar Periodo
+             </button>
+             <button class="btn btn-secondary" id="btn-open-z-bulk" style="height:42px; border-color:#8b5cf6; color:#8b5cf6; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; white-space:nowrap;">
+                <span>📁</span> Carga Masiva
+             </button>
           </div>
         </header>
 
         <div class="cards-grid">
            <!-- Manual Entry Panel -->
            <div class="glass-panel" style="grid-column: span 1; border-left: 5px solid var(--primary-color);">
-              <h3 style="color:var(--primary-color);">1. Carga Manual de Caja</h3>
-              <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Ingresá el cierre físico de este turno.</p>
+              <h3 id="z-manual-title" style="color:var(--primary-color);">1. Carga Manual de Caja</h3>
+              <p id="z-manual-desc" style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Ingresá el cierre físico de este turno.</p>
               
-              <div style="font-size:12px; margin-bottom:5px;">Total Turno ($)</div>
+              <div style="font-size:12px; margin-bottom:5px;" id="z-actual-label">Total Turno ($)</div>
               <input type="number" id="z-actual-sales" placeholder="Ej: 80000" style="font-size:32px; font-weight:bold; height:60px; text-align:center; color:white; border-color:var(--primary-color);">
               
               <button class="btn btn-primary w-full" id="btn-save-z-report" style="margin-top:15px; height:50px; font-size:16px;">💾 GUARDAR CIERRE Z</button>
+              <div id="z-range-info" class="hidden" style="margin-top:15px; font-size:11px; color:#10b981; text-align:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
+                 Suma de cierres Z guardados para este periodo.
+              </div>
            </div>
 
            <!-- Real-time Comparison -->
@@ -899,6 +917,137 @@
            <h3 style="color:#f59e0b;">💡 Consejos de Gestión Inteligente</h3>
            <div id="z-ai-tips" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:20px; margin-top:15px;">
               <div style="color:var(--text-muted); font-size:14px; font-style:italic;">Analizando tus números para darte consejos...</div>
+           </div>
+        </div>
+      </section>
+
+      <!-- EERR View (Enhanced P&L Dashboard) -->
+      <section id="view-eerr" class="view hidden">
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
+          <div>
+            <h2 style="font-size:28px; letter-spacing:-0.5px; color:#fff; display:flex; align-items:center; gap:12px;">
+              <span style="font-size:32px;">📈</span> Estado de Resultados & Proyecciones (P&L)
+            </h2>
+            <p style="color:var(--text-muted); font-size:14px; margin-top:5px;">Panel para auditar la rentabilidad final, gastos fijos y hallar tu Punto de Equilibrio.</p>
+          </div>
+          <div style="display:flex; gap:15px; align-items:center; background:rgba(255,255,255,0.03); padding:8px 15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+            <div>
+               <label style="font-size:11px; text-transform:uppercase; font-weight:bold; color:var(--primary-color); display:block; margin-bottom:4px;">Periodo de Análisis:</label>
+               <input type="month" id="eerr-month" style="padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.2); color:white; outline:none; font-family:var(--font-main); cursor:pointer;">
+            </div>
+            <button class="btn btn-primary" id="btn-refresh-eerr" style="height:45px; align-self:flex-end;">🔍 Analizar</button>
+          </div>
+        </header>
+
+        <div class="cards-grid" style="grid-template-columns: repeat(4, 1fr); gap:20px; margin-bottom:25px;">
+           <div class="card stat-card glass-panel" style="border-top: 4px solid #10b981; background: linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(0,0,0,0) 100%);">
+              <h3 style="color:#10b981; font-size:13px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Facturación Bruta Proyectada</h3>
+              <p class="stat-value" id="eerr-projected-sales" style="font-size:36px; margin:0;">$0</p>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:8px;" id="eerr-sales-real">Cargando real acumulado...</div>
+           </div>
+           <div class="card stat-card glass-panel" style="border-top: 4px solid #ef4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(0,0,0,0) 100%);">
+              <h3 style="color:#ef4444; font-size:13px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Costo Variables (CMV)</h3>
+              <p class="stat-value" id="eerr-calc-cmv-money" style="font-size:36px; margin:0;">$0</p>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:8px;" id="eerr-calc-cmv-percent">Meta simulada: 0%</div>
+           </div>
+           <div class="card stat-card glass-panel" style="border-top: 4px solid #f59e0b; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(0,0,0,0) 100%);">
+              <h3 style="color:#f59e0b; font-size:13px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Gastos Fijos Operativos</h3>
+              <p class="stat-value" id="eerr-calc-fixed" style="font-size:36px; margin:0;">$0</p>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:8px;" id="eerr-calc-fixed-percent">Impacto en ventas: 0%</div>
+           </div>
+           <div class="card stat-card glass-panel" style="border-top: 4px solid #8b5cf6; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(0,0,0,0) 100%); border-right:1px solid rgba(139,92,246,0.3);">
+              <h3 style="color:#a78bfa; font-size:13px; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">Margen Neto EBITDA</h3>
+              <p class="stat-value" id="eerr-net-profit" style="font-size:36px; margin:0; color:#10b981;">$0</p>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:8px;" id="eerr-net-profit-perc">Rentabilidad Estimada: 0%</div>
+           </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 350px 1fr; gap:25px;">
+           <!-- Column Left: Simulation & Entry -->
+           <div style="display:flex; flex-direction:column; gap:20px;">
+              <!-- Simulation Controller -->
+              <div class="glass-panel" style="border:1px solid rgba(245, 158, 11, 0.2); padding:25px;">
+                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="color:#f59e0b; margin:0;">🎛️ Simular Escenario</h3>
+                    <div style="text-align:right;">
+                       <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Real Acum: <span id="eerr-real-cmv-perc">0%</span></div>
+                       <div style="background:rgba(245, 158, 11, 0.1); color:#f59e0b; padding:4px 10px; border-radius:30px; font-weight:bold; font-size:16px; margin-top:4px;" id="eerr-sim-cmv-val">35%</div>
+                    </div>
+                 </div>
+                 <p style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">El sistema inicia con el CMV real del mes. Movelo para simular.</p>
+                 
+                 <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Meta / Simulación de CMV (%)</label>
+                 <input type="range" id="eerr-sim-cmv" min="15" max="60" value="35" style="width:100%; margin:15px 0; accent-color:#f59e0b; cursor:pointer;">
+                 
+                 <label style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:10px; display:block;">Simulación Escenario Ventas ($)</label>
+                 <input type="number" id="eerr-sim-sales" placeholder="Ingresá monto simulado" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); color:white; font-size:18px; font-weight:bold; margin-top:5px; text-align:center;">
+                 <p style="font-size:10px; color:var(--text-muted); margin-top:4px;">* Por defecto usa la proyección real del mes.</p>
+
+                 <div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                       <span style="font-size:13px; color:var(--text-muted);">Punto de Equilibrio</span>
+                       <span id="eerr-breakeven" style="font-weight:bold; color:#bb935c;">$0</span>
+                    </div>
+                    <p style="font-size:11px; color:var(--text-muted); line-height:1.4; border-left:2px solid #bb935c; padding-left:10px;">Debes vender al menos esta cifra para empezar a ser rentable con este CMV.</p>
+                 </div>
+              </div>
+
+              <!-- Manual Entry Form -->
+              <div class="glass-panel flex-column" style="border-left: 5px solid #8b5cf6; padding:25px;">
+                  <h3 style="color:#a78bfa;">💸 Registro de Egresos</h3>
+                  <div style="margin-top:15px;">
+                    <label>Concepto / Descripción del Gasto</label>
+                    <input type="text" id="eerr-exp-desc" placeholder="Ej: Seguro Integral de Comercio" style="margin-bottom:15px;">
+                    
+                    <label>Categoría Operativa (Seleccioná o escribí una nueva)</label>
+                    <input list="eerr-cats" id="eerr-exp-cat" placeholder="Ej: Seguros, Alquiler, etc." style="margin-bottom:15px; background:rgba(0,0,0,0.3);">
+                    <datalist id="eerr-cats">
+                      <option value="🏠 Alquiler"></option>
+                      <option value="👥 Sueldos"></option>
+                      <option value="⚡ Servicios"></option>
+                      <option value="🏛️ Impuestos"></option>
+                      <option value="📢 Propaganda"></option>
+                      <option value="🛡️ Seguros"></option>
+                      <option value="📦 Otros"></option>
+                    </datalist>
+                    
+                    <label>Importe Bruto ($)</label>
+                    <input type="number" id="eerr-exp-amount" placeholder="0" style="font-size:28px; font-weight:bold; color:#fff; text-align:center; height:60px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); margin-bottom:5px;">
+                    <div id="eerr-exp-amount-preview" style="text-align:center; font-size:14px; color:#10b981; margin-bottom:15px; font-weight:bold; height:20px;">$ 0</div>
+                    
+                    <button class="btn btn-primary w-full" id="btn-save-expense" style="background:#8b5cf6; height:50px; font-size:16px;">💾 Registrar Gasto en EERR</button>
+                  </div>
+              </div>
+           </div>
+
+           <!-- Column Right: List of Expenses -->
+           <div class="glass-panel" style="flex:1; min-width: 0;">
+              <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom:15px;">
+                  <div>
+                    <h3 style="margin:0;">📂 Detalle de Egresos Propios</h3>
+                    <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">Hacé click en los valores para editarlos directamente.</p>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:11px; padding:5px 12px; background:rgba(255,255,255,0.1); border-radius:20px; color:var(--text-muted); margin-bottom:5px;" id="eerr-expense-count">0 registros</div>
+                    <div style="font-size:14px; font-weight:bold; color:#ef4444;">Total: <span id="eerr-total-expenses">$0</span></div>
+                  </div>
+              </header>
+              <div style="min-height: 400px; padding-right:10px;">
+                <table class="data-table" style="font-size:13px; text-align:left;">
+                   <thead style="position: sticky; top:0; background:var(--background-dark); z-index:10;">
+                      <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:11px;">
+                        <th style="padding:10px;">Categoría</th>
+                        <th>Concepto / Descripción</th>
+                        <th style="text-align:right;">Importe ($)</th>
+                        <th style="text-align:right;">% Incidencia</th>
+                        <th style="text-align:center;">Acción</th>
+                      </tr>
+                   </thead>
+                   <tbody id="eerr-expenses-tbody">
+                      <tr><td colspan="4" style="text-align:center; padding:50px; color:var(--text-muted);">Cargando registro de egresos...</td></tr>
+                   </tbody>
+                </table>
+              </div>
            </div>
         </div>
       </section>
@@ -2459,7 +2608,14 @@
         
         const fifteenDaysAgo = new Date();
         fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-        const { data: salesHistory } = await supabase.from('sale_items').select('product_id, quantity').gt('created_at', fifteenDaysAgo.toISOString());
+        
+        // Corrected Query: sale_items doesn't have created_at, its parent 'sales' does.
+        const { data: salesItemsRes, error: salesErr } = await supabase
+          .from('sale_items')
+          .select('product_id, quantity, sales!inner(created_at)')
+          .gt('sales.created_at', fifteenDaysAgo.toISOString());
+        
+        const salesHistory = salesItemsRes || [];
 
         // 2. Maps
         const stockMap = {};
@@ -2472,10 +2628,11 @@
            itemToRecipes[r.product_id].push(r);
         });
 
-        if (salesHistory) {
+        if (salesHistory.length > 0) {
           salesHistory.forEach(s => {
             const recipe = itemToRecipes[s.product_id] || [];
             recipe.forEach(ing => {
+              // Now we iterate through the joined items
               consumptionMap[ing.ingredient_id] = (consumptionMap[ing.ingredient_id] || 0) + (ing.quantity * s.quantity);
             });
           });
@@ -2491,16 +2648,27 @@
           let suggest = (avgDaily * bufferDays) - currentStock;
           if (suggest < 0) suggest = 0;
           
-          const rowClass = parseFloat(daysLeft) < 3 ? 'row-low-stock' : '';
+          let rowClass = '';
+          if (parseFloat(daysLeft) < 3) {
+            rowClass = 'row-low-stock';
+          } else if (suggest > 0) {
+            rowClass = 'row-to-buy';
+          }
 
           return `
-            <tr class="${rowClass}">
-              <td>${m.name} (${m.unit})</td>
-              <td>${currentStock.toFixed(2)}</td>
-              <td>${avgDaily.toFixed(2)}</td>
-              <td style="font-weight:bold; color:${parseFloat(daysLeft) < 3 ? '#ef4444' : 'inherit'};">${daysLeft} días</td>
-              <td style="color:#f59e0b; font-weight:bold;">${suggest > 0 ? suggest.toFixed(2) : '-'} ${m.unit}</td>
-              <td><button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.customAlert('El consumo estimado se basa en el promedio de los últimos 15 días: ${(totalCons15d).toFixed(2)} ${m.unit} totales.')">ℹ️</button></td>
+            <tr class="${rowClass}" style="${suggest > 0 ? 'background:rgba(139, 92, 246, 0.05);' : ''}">
+              <td style="font-weight:600;">${m.name} (${m.unit})</td>
+              <td style="font-family:monospace;">${currentStock.toFixed(2)}</td>
+              <td style="color:var(--text-muted);">${avgDaily.toFixed(2)}</td>
+              <td style="font-weight:bold; color:${parseFloat(daysLeft) < 3 ? '#ef4444' : (parseFloat(daysLeft) < 7 ? '#f59e0b' : '#10b981')};">
+                 ${daysLeft} días
+              </td>
+              <td style="color:#a78bfa; font-weight:bold; font-size:14px;">
+                 ${suggest > 0 ? '🚀 COMPRAR: ' + suggest.toFixed(2) : '-'} ${suggest > 0 ? m.unit : ''}
+              </td>
+              <td style="text-align:center;">
+                <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px; border-radius:50%;" onclick="window.customAlert('En los últimos 15 días consumiste ${(totalCons15d).toFixed(2)} ${m.unit} de este insumo.')">ℹ️</button>
+              </td>
             </tr>
           `;
         }).join('');
@@ -2520,11 +2688,13 @@
           const cells = row.querySelectorAll('td');
           if (cells.length < 5) return;
           const name = cells[0].innerText;
-          const suggest = cells[4].innerText;
+          const suggestText = cells[4].innerText;
           
-          if (suggest !== '-') {
+          if (suggestText.includes('COMPRAR')) {
             hasItems = true;
-            message += "• " + name + ": *" + suggest + "*%0A";
+            // Extract the quantity
+            const qty = suggestText.replace('🚀 COMPRAR: ', '').trim();
+            message += "• " + name + ": *" + qty + "*%0A";
           }
         });
 
@@ -2542,37 +2712,74 @@
     let currentDaySystemData = { sales: 0, cmv: 0, count: 0 };
 
     async function loadZReportView() {
-      const dateInp = document.getElementById('z-report-date');
-      if (!dateInp.value) dateInp.value = new Date().toISOString().split('T')[0];
+      const fromInp = document.getElementById('z-from-date');
+      const toInp = document.getElementById('z-to-date');
+      if (!fromInp.value) fromInp.value = new Date().toISOString().split('T')[0];
+      if (!toInp.value) toInp.value = new Date().toISOString().split('T')[0];
       
       await updateMonthlyGrowthChart();
-      await analyzeSelectedDay();
+      await analyzeSelectedPeriod();
     }
 
     const btnLoadZ = document.getElementById('btn-load-z-data');
-    if (btnLoadZ) btnLoadZ.addEventListener('click', analyzeSelectedDay);
+    if (btnLoadZ) btnLoadZ.addEventListener('click', analyzeSelectedPeriod);
     
     const btnShowCostDebug = document.getElementById('btn-show-cost-debug');
     const costDebugPanel = document.getElementById('cost-debug-panel');
     const costDebugTbody = document.getElementById('cost-debug-tbody');
     if (btnShowCostDebug) btnShowCostDebug.onclick = () => costDebugPanel.classList.toggle('hidden');
 
-    async function analyzeSelectedDay() {
-      const date = document.getElementById('z-report-date').value;
+    async function analyzeSelectedPeriod() {
+      const fromDate = document.getElementById('z-from-date').value;
+      const toDate = document.getElementById('z-to-date').value;
       const shift = document.getElementById('z-report-shift').value;
-      if (!date) return;
+      if (!fromDate || !toDate) return;
       
+      const isRange = fromDate !== toDate;
+      const manualBtn = document.getElementById('btn-save-z-report');
+      const manualInp = document.getElementById('z-actual-sales');
+      const rangeInfo = document.getElementById('z-range-info');
+      const manualTitle = document.getElementById('z-manual-title');
+      const manualDesc = document.getElementById('z-manual-desc');
+      const manualLabel = document.getElementById('z-actual-label');
+
       showLoading(true);
+
+      // UI Context Logic
+      if (isRange) {
+        if(manualBtn) manualBtn.classList.add('hidden');
+        manualInp.readOnly = true;
+        manualInp.style.opacity = "0.7";
+        if(rangeInfo) rangeInfo.classList.remove('hidden');
+        if(manualTitle) manualTitle.innerText = "📅 Consolidado Periodo";
+        if(manualDesc) manualDesc.innerText = "Cierres Z registrados en este rango.";
+        if(manualLabel) manualLabel.innerText = "Total Caja Registrada ($)";
+      } else {
+        if(manualBtn) manualBtn.classList.remove('hidden');
+        manualInp.readOnly = false;
+        manualInp.style.opacity = "1";
+        if(rangeInfo) rangeInfo.classList.add('hidden');
+        if(manualTitle) manualTitle.innerText = "1. Registro de Caja";
+        if(manualDesc) manualDesc.innerText = "Ingresá el cierre físico de este turno.";
+        if(manualLabel) manualLabel.innerText = "Total Turno ($)";
+      }
       
-      // Query by the New OPERATIVE DATE (sale_date)
-      let query = supabase.from('sales').select('id, total_amount, shift, created_at').eq('sale_date', date);
-      const { data: sales } = await query;
+      const [salesRes, zRes] = await Promise.all([
+         supabase.from('sales').select('id, total_amount, shift, sale_date').gte('sale_date', fromDate).lte('sale_date', toDate),
+         supabase.from('daily_z_report').select('manual_actual_sales, shift').gte('report_date', fromDate).lte('report_date', toDate)
+      ]);
+
+      const sales = salesRes.data || [];
+      const manualZ = zRes.data || [];
       
-      // EXPLICIT SHIFT FILTER using the new column from DB
-      const filteredSales = (sales || []).filter(s => {
-        if (shift === 'Todo') return true;
-        return s.shift === shift; // Comparison with string 'Día' or 'Noche'
-      });
+      const filteredSales = sales.filter(s => shift === 'Todo' ? true : s.shift === shift);
+      const filteredManual = manualZ.filter(z => shift === 'Todo' ? true : z.shift === shift);
+
+      if (isRange) {
+         manualInp.value = filteredManual.reduce((sum, z) => sum + (parseFloat(z.manual_actual_sales) || 0), 0);
+      } else {
+         manualInp.value = filteredManual[0] ? filteredManual[0].manual_actual_sales : '';
+      }
 
       if (filteredSales.length === 0) {
         document.getElementById('z-system-sales').innerText = "$0";
@@ -2584,8 +2791,7 @@
         showLoading(false);
         return;
       }
-      document.getElementById('z-status-badge').innerHTML = `<span style="color:#10b981;font-size:11px;">✔️ OK (${filteredSales.length} tickets)</span>`;
-
+      document.getElementById('z-status-badge').innerHTML = `<span style="color:#10b981;font-size:11px;">✔️ ${isRange ? 'PERIODO' : 'DIA'} (${filteredSales.length} tickets)</span>`;
 
       const allItems = await getComputedItems();
       const { data: saleItems } = await supabase.from('sale_items').select('sale_id, product_id, quantity')
@@ -2594,7 +2800,6 @@
       const itemsCostMap = {};
       const itemsPriceMap = {};
       const itemsNameMap = {};
-      
       allItems.forEach(i => {
         itemsCostMap[i.id] = parseFloat(i.cost) || 0;
         itemsPriceMap[i.id] = parseFloat(i.sale_price) || 0;
@@ -2603,40 +2808,27 @@
 
       let totalSales = 0;
       let totalCmv = 0;
+      const productsList = {};
       
-      // Calculate Total Sales: Use DB value, or RECALCULATE from products if zero
       filteredSales.forEach(s => {
         let val = parseFloat(s.total_amount) || 0;
-        if (val <= 0) {
-           // Fallback: search items in this sale and sum sale_price
-           const itemsInThisSale = (saleItems || []).filter(si => si.sale_id === s.id);
-           itemsInThisSale.forEach(si => {
-              val += (si.quantity * (itemsPriceMap[si.product_id] || 0));
-           });
-        }
+        const itemsInThisSale = (saleItems || []).filter(si => si.sale_id === s.id);
+        if (val <= 0) itemsInThisSale.forEach(si => val += (si.quantity * (itemsPriceMap[si.product_id] || 0)));
         totalSales += val;
-      });
 
-      (saleItems || []).forEach(si => {
-        const productCost = itemsCostMap[si.product_id] || 0;
-        totalCmv += (si.quantity * productCost);
-      });
-
-      // --- CMV DEBUG DATA GENERATION ---
-      const productsList = {};
-      (saleItems || []).forEach(si => {
-          const name = itemsNameMap[si.product_id] || 'Desconocido';
-          if (!productsList[name]) productsList[name] = { qty: 0, uCost: 0, total: 0 };
-          
-          const itemUCost = itemsCostMap[si.product_id] || 0;
-          
-          productsList[name].qty += si.quantity;
-          productsList[name].uCost = itemUCost;
-          productsList[name].total += (si.quantity * itemUCost);
+        itemsInThisSale.forEach(si => {
+           const pName = itemsNameMap[si.product_id] || 'Desconocido';
+           if (!productsList[pName]) productsList[pName] = { qty: 0, uCost: 0, total: 0 };
+           const cost = itemsCostMap[si.product_id] || 0;
+           productsList[pName].qty += si.quantity;
+           productsList[pName].uCost = cost;
+           productsList[pName].total += (si.quantity * cost);
+           totalCmv += (si.quantity * cost);
+        });
       });
 
       let debugHtml = '';
-      Object.keys(productsList).forEach(pName => {
+      Object.keys(productsList).sort((a,b) => productsList[b].total - productsList[a].total).forEach(pName => {
           const p = productsList[pName];
           debugHtml += `
              <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -2649,47 +2841,31 @@
       });
       if(costDebugTbody) costDebugTbody.innerHTML = debugHtml;
 
-
       currentDaySystemData = { sales: totalSales, cmv: totalCmv, count: filteredSales.length };
-      
-      // Force UI Update
       document.getElementById('z-system-sales').innerText = formatCurrency(totalSales);
       document.getElementById('z-system-cmv').innerText = formatCurrency(totalCmv);
       
       const cmvPct = totalSales > 0 ? (totalCmv / totalSales * 100) : 0;
       const marginPct = totalSales > 0 ? ((totalSales - totalCmv) / totalSales * 100) : 0;
-      
       document.getElementById('z-system-cmv-perc').innerText = cmvPct.toFixed(1) + '%';
       document.getElementById('z-system-margin').innerText = marginPct.toFixed(1) + '%';
 
-      // --- New Z Analysis Chart (Doughnut) ---
       const zCtx = document.getElementById('zAnalysisChart').getContext('2d');
       if (zAnalysisChart) zAnalysisChart.destroy();
-      
       if (totalSales > 0) {
         zAnalysisChart = new Chart(zCtx, {
           type: 'doughnut',
           data: {
-            labels: ['Costo (CMV)', 'Ganancia Neta'],
+            labels: ['Costo Mercadería', 'Margen Bruto'],
             datasets: [{
               data: [totalCmv, Math.max(0, totalSales - totalCmv)],
               backgroundColor: ['#ef4444', '#10b981'],
-              borderWidth: 0,
-              hoverOffset: 10
+              borderWidth: 0, hoverOffset: 10
             }]
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } }
-            },
-            cutout: '70%'
-          }
+          options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 10 } } } } }
         });
       }
-
-      
       updateZDiff();
       showLoading(false);
     }
@@ -2739,7 +2915,7 @@
     const btnSaveZ = document.getElementById('btn-save-z-report');
     if (btnSaveZ) {
       btnSaveZ.addEventListener('click', async () => {
-        const date = document.getElementById('z-report-date').value;
+        const fromDate = document.getElementById('z-from-date').value;
         const actual = parseFloat(document.getElementById('z-actual-sales').value);
         const shift = document.getElementById('z-report-shift').value;
 
@@ -2747,7 +2923,7 @@
         
         showLoading(true);
         const { error } = await supabase.from('daily_z_report').upsert({
-          report_date: date,
+          report_date: fromDate,
           shift: shift,
           manual_actual_sales: actual,
           system_ticket_sales: currentDaySystemData.sales,
@@ -3010,6 +3186,209 @@
       });
     }
 
+    // --- EERR Logic ---
+    async function loadEERRView() {
+      showLoading(true);
+      const eerrMonth = document.getElementById('eerr-month');
+      if (!eerrMonth.value) {
+        const d = new Date();
+        eerrMonth.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+      
+      const periodKey = eerrMonth.value;
+      const parts = periodKey.split('-');
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      
+      const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextYear = month === 12 ? year + 1 : year;
+      const toDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
+      // Parallel Data Fetching
+      const [expRes, zSalesRes, targetRes, cmvRes] = await Promise.all([
+        supabase.from('expenses').select('*').gte('expense_date', fromDate).lt('expense_date', toDate).order('expense_date', { ascending: false }),
+        supabase.from('daily_z_report').select('manual_actual_sales, report_date').gte('report_date', fromDate).lt('report_date', toDate),
+        supabase.from('monthly_targets').select('target_cmv_perc').eq('month_year', periodKey).maybeSingle(),
+        supabase.from('stock_movements').select('quantity, items(cost)').eq('movement_type', 'sale_deduction').gte('created_at', fromDate + 'T00:00:00Z').lt('created_at', toDate + 'T23:59:59Z')
+      ]);
+
+      // 1. Render Expenses Table with Inline Editing
+      const tbody = document.getElementById('eerr-expenses-tbody');
+      const expenses = expRes.data || [];
+      let totalFixed = 0;
+      if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--text-muted);">No hay gastos registrados en este periodo.</td></tr>';
+      } else {
+        totalFixed = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        tbody.innerHTML = expenses.map(e => `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+            <td style="color:#a78bfa; font-weight:bold; font-size:11px;">${(e.category || 'OTROS').toUpperCase()}</td>
+            <td>
+              <span id="txt-exp-desc-${e.id}" onclick="window.editExpField('${e.id}', 'description')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">${e.description}</span>
+            </td>
+            <td style="text-align:right; font-weight:bold; font-family:monospace;">
+               <span id="txt-exp-amt-${e.id}" onclick="window.editExpField('${e.id}', 'amount')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">${formatCurrency(e.amount)}</span>
+            </td>
+            <td style="text-align:right; font-weight:bold; color:var(--text-muted); font-size:12px;">
+               <span id="eerr-row-inc-${e.id}">0%</span>
+            </td>
+            <td style="text-align:center;">
+              <button class="btn" style="padding:4px; font-size:11px; color:#ef4444;" onclick="window.deleteExpense('${e.id}')">🗑️</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+      document.getElementById('eerr-total-expenses').innerText = formatCurrency(totalFixed);
+      document.getElementById('eerr-calc-fixed').innerText = formatCurrency(totalFixed);
+      document.getElementById('eerr-expense-count').innerText = `${expenses.length} registros`;
+
+      // 2. Projected Sales from daily_z_report
+      const zSales = zSalesRes.data || [];
+      const acumuladoZ = zSales.reduce((acc, curr) => acc + parseFloat(curr.manual_actual_sales || 0), 0);
+      document.getElementById('eerr-sales-real').innerText = `Acumulado Real (Informes Z): ${formatCurrency(acumuladoZ)}`;
+
+      const now = new Date();
+      const isCurrentMonth = (year === now.getFullYear() && month === (now.getMonth() + 1));
+      let projectedSales = acumuladoZ;
+      if (isCurrentMonth) {
+        const uniqueDaysThisMonth = new Set(zSales.map(h => h.report_date)).size;
+        const avgDaily = acumuladoZ / (uniqueDaysThisMonth || 1);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        projectedSales = avgDaily * daysInMonth;
+      } else {
+        projectedSales = acumuladoZ;
+      }
+      document.getElementById('eerr-projected-sales').innerText = formatCurrency(projectedSales);
+      const simSales = document.getElementById('eerr-sim-sales');
+      simSales.value = Math.round(projectedSales);
+
+      // 3. CMV Actual vs Simulación
+      let theoreticalCmvMoney = 0;
+      if (cmvRes.data && cmvRes.data.length > 0) {
+        theoreticalCmvMoney = cmvRes.data.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.cost || 0)), 0);
+      }
+      const theoreticalCmvPerc = acumuladoZ > 0 ? (theoreticalCmvMoney / acumuladoZ) * 100 : 35;
+      
+      const realCmvPercEl = document.getElementById('eerr-real-cmv-perc');
+      if (realCmvPercEl) realCmvPercEl.innerText = `${theoreticalCmvPerc.toFixed(1)}%`;
+      
+      const simCmv = document.getElementById('eerr-sim-cmv');
+      // Por defecto siempre iniciamos con la ACTUAL del negocio
+      simCmv.value = Math.round(theoreticalCmvPerc);
+
+      window.renderEERRResults = () => {
+        const curSimCmv = parseFloat(simCmv.value);
+        const curSimSales = parseFloat(simSales.value) || 0.01;
+
+        document.getElementById('eerr-sim-cmv-val').innerText = `${curSimCmv}%`;
+        document.getElementById('eerr-calc-cmv-percent').innerText = `Simulación CMV: ${curSimCmv}%`;
+        
+        const cmvMoneyValue = curSimSales * (curSimCmv / 100);
+        const netProfitValue = curSimSales - cmvMoneyValue - totalFixed;
+        const breakEvenValue = totalFixed / (1 - (curSimCmv / 100 || 0.01));
+
+        document.getElementById('eerr-calc-cmv-money').innerText = formatCurrency(cmvMoneyValue);
+        
+        const totalImpactPerc = curSimSales > 0 ? ((totalFixed / curSimSales) * 100).toFixed(1) : 0;
+        document.getElementById('eerr-calc-fixed-percent').innerText = `% Total Incidencia Fija: ${totalImpactPerc}%`;
+        
+        const profitEl = document.getElementById('eerr-net-profit');
+        profitEl.innerText = formatCurrency(netProfitValue);
+        profitEl.style.color = netProfitValue >= 0 ? '#10b981' : '#ef4444';
+        
+        const profitPerc = curSimSales > 0 ? ((netProfitValue / curSimSales) * 100).toFixed(1) : 0;
+        document.getElementById('eerr-net-profit-perc').innerText = `Margen Final: ${profitPerc}%`;
+        document.getElementById('eerr-breakeven').innerText = formatCurrency(breakEvenValue) + ' (Venta Mínima)';
+
+        // Update list percentages based on current simulated sales
+        expenses.forEach(e => {
+           const rowIncEl = document.getElementById(`eerr-row-inc-${e.id}`);
+           if (rowIncEl) {
+              const percValue = curSimSales > 0 ? (parseFloat(e.amount) / curSimSales * 100).toFixed(2) : '0';
+              rowIncEl.innerText = `${percValue}%`;
+           }
+        });
+      };
+
+      window.renderEERRResults();
+      showLoading(false);
+    }
+
+    // Modal/Prompt helpers for inline editing
+    window.editExpField = async (id, field) => {
+       const { data: exp } = await supabase.from('expenses').select('*').eq('id', id).single();
+       if(!exp) return;
+       
+       const currentVal = field === 'amount' ? exp.amount : exp.description;
+       const inputType = field === 'amount' ? 'number' : 'text';
+       const promptMsg = field === 'amount' ? `Nuevo importe para "${exp.description}":` : `Nueva descripción para el gasto:`;
+       
+       const newValStr = await window.customPrompt(promptMsg, "Editar Gasto", inputType === 'password' ? 'text' : inputType);
+       if(newValStr === null || newValStr === "") return;
+       
+       const newVal = field === 'amount' ? parseFloat(newValStr) : newValStr;
+       if(field === 'amount' && isNaN(newVal)) return;
+
+       showLoading(true);
+       const updateData = {};
+       updateData[field] = newVal;
+       const { error } = await supabase.from('expenses').update(updateData).eq('id', id);
+       
+       if(!error) {
+         await loadEERRView();
+       } else {
+         await customAlert("Error: " + error.message);
+       }
+       showLoading(false);
+    };
+
+    // --- Action Handlers ---
+    document.getElementById('btn-refresh-eerr').onclick = loadEERRView;
+    document.getElementById('eerr-sim-cmv').oninput = () => window.renderEERRResults();
+    document.getElementById('eerr-sim-sales').oninput = () => window.renderEERRResults();
+ 
+    // Real-time currency preview
+    document.getElementById('eerr-exp-amount').addEventListener('input', (e) => {
+       const val = parseFloat(e.target.value) || 0;
+       document.getElementById('eerr-exp-amount-preview').innerText = formatCurrency(val);
+    });
+ 
+    // Auto-save target on change
+    document.getElementById('eerr-sim-cmv').onchange = async () => {
+       const periodKey = document.getElementById('eerr-month').value;
+       await supabase.from('monthly_targets').upsert({ month_year: periodKey, target_cmv_perc: parseFloat(document.getElementById('eerr-sim-cmv').value) }, { onConflict: 'month_year' });
+    };
+
+    document.getElementById('btn-save-expense').onclick = async () => {
+      const desc = document.getElementById('eerr-exp-desc').value;
+      const cat = document.getElementById('eerr-exp-cat').value;
+      const amount = parseFloat(document.getElementById('eerr-exp-amount').value);
+      const periodKey = document.getElementById('eerr-month').value;
+
+      if (!desc || isNaN(amount) || !periodKey) return customAlert("Completá todos los campos para registrar el gasto.");
+      
+      showLoading(true);
+      const dateStr = `${periodKey}-01`;
+      const { error } = await supabase.from('expenses').insert({ description: desc, category: cat, amount: amount, expense_date: dateStr });
+      if (!error) {
+        document.getElementById('eerr-exp-desc').value = '';
+        document.getElementById('eerr-exp-amount').value = '';
+        await loadEERRView();
+      } else {
+        await customAlert("Error: " + error.message);
+      }
+      showLoading(false);
+    };
+
+    window.deleteExpense = async (id) => {
+      if(!await customConfirm("¿Borrar este registro de gasto?")) return;
+      showLoading(true);
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if(!error) await loadEERRView();
+      showLoading(false);
+    };
+
     async function initApp() {
       // --- Admin Auth ---
       const btnAdminAuth = document.getElementById('btn-admin-auth');
@@ -3076,6 +3455,7 @@
           if (targetId === 'view-analytics') loadAnalyticsView();
           if (targetId === 'view-procurement') loadProcurementView();
           if (targetId === 'view-zreport') loadZReportView();
+          if (targetId === 'view-eerr') loadEERRView();
           if (targetId === 'view-calculator') { const btnLoadCalc = document.getElementById('btn-load-calc-items'); if(btnLoadCalc) btnLoadCalc.click(); }
         });
       });
