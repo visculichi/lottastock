@@ -1346,45 +1346,45 @@
     // --- API Logic ---
     async function calculateDashboardVariables(fromStr, toStr) {
       let salesQuery = supabase.from('sales').select('id, created_at');
-      let movQuery = supabase.from('stock_movements').select('quantity, reference_id, items(cost)').eq('movement_type', 'sale_deduction');
-      let sItemsQuery = supabase.from('sale_items').select('quantity, product_id, sale_id, items(name, sale_price)');
 
       if (fromStr) {
-        const dFrom = new Date(fromStr);
-        dFrom.setMinutes(dFrom.getMinutes() + dFrom.getTimezoneOffset());
-        const ds = dFrom.toISOString();
-        salesQuery = salesQuery.gte('created_at', ds);
+        salesQuery = salesQuery.gte('sale_date', fromStr);
       }
       if (toStr) {
-        const dTo = new Date(toStr);
-        dTo.setMinutes(dTo.getMinutes() + dTo.getTimezoneOffset());
-        dTo.setDate(dTo.getDate() + 1); // add 1 day to cover until close hours
-        const ds = dTo.toISOString();
-        salesQuery = salesQuery.lt('created_at', ds);
+        salesQuery = salesQuery.lte('sale_date', toStr);
       }
 
       const { data: validSales } = await salesQuery;
       const validSaleIds = validSales ? validSales.map(s => s.id) : [];
 
-      const { data: salesData } = await sItemsQuery;
+      const { data: salesData } = await supabase.from('sale_items')
+        .select('quantity, product_id, sale_id, items(name, sale_price)')
+        .in('sale_id', validSaleIds);
+
+      const allItems = await getComputedItems();
+      const itemsCostMap = {};
+      const itemsPriceMap = {};
+      allItems.forEach(i => {
+        itemsCostMap[i.id] = i.cost || 0;
+        itemsPriceMap[i.id] = i.sale_price || 0;
+      });
+
       let totalSales = 0;
+      let cmvTotal = 0;
       let topProducts = {};
 
       if (salesData) {
-        const filteredSData = salesData.filter(s => (fromStr || toStr) ? validSaleIds.includes(s.sale_id) : true);
-        totalSales = filteredSData.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.sale_price || 0)), 0);
-        
-        filteredSData.forEach(s => {
-          if(!topProducts[s.product_id]) topProducts[s.product_id] = { name: s.items?.name, qty: 0 };
-          topProducts[s.product_id].qty += s.quantity;
-        });
-      }
+        salesData.forEach(si => {
+          const qty = si.quantity || 0;
+          const cost = itemsCostMap[si.product_id] || 0;
+          const price = itemsPriceMap[si.product_id] || 0;
+          
+          totalSales += (qty * price);
+          cmvTotal += (qty * cost);
 
-      const { data: cmvData } = await movQuery;
-      let cmvTotal = 0;
-      if (cmvData) {
-        const filteredCmvData = cmvData.filter(c => (fromStr || toStr) ? validSaleIds.includes(String(c.reference_id)) : true);
-        cmvTotal = filteredCmvData.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.cost || 0)), 0);
+          if(!topProducts[si.product_id]) topProducts[si.product_id] = { name: si.items?.name, qty: 0 };
+          topProducts[si.product_id].qty += qty;
+        });
       }
 
       // Inventory valuation is global, no date filter
@@ -1400,7 +1400,6 @@
       const { data: currentStock } = await supabase.from('inventory').select('item_id, quantity, items(name, unit, low_stock_threshold)');
       const lowStockAlerts = [];
       if (currentStock) {
-        // Aggregate stock by item if it exists in multiple deposits
         const aggregatedStock = {};
         currentStock.forEach(s => {
           if (!aggregatedStock[s.item_id]) aggregatedStock[s.item_id] = { name: s.items?.name, unit: s.items?.unit, threshold: s.items?.low_stock_threshold, qty: 0 };
@@ -3555,6 +3554,15 @@
           switchView(viewId);
         });
       });
+
+      const btnFilterDash = document.getElementById('btn-filter-dash');
+      if (btnFilterDash) {
+        btnFilterDash.onclick = () => {
+          const from = document.getElementById('dash-date-from').value;
+          const to = document.getElementById('dash-date-to').value;
+          loadDashboardView(from, to);
+        };
+      }
 
       let calcItemsList = [];
       let showHiddenRows = false; 
