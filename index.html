@@ -37,6 +37,7 @@
         <li class="admin-only"><a href="#" id="nav-zreport"><span class="icon">💰</span> Reporte Z y Gestión</a></li>
         <li class="admin-only"><a href="#" id="nav-analytics"><span class="icon">📊</span> Análisis y Proyecciones</a></li>
         <li class="admin-only"><a href="#" id="nav-procurement"><span class="icon">🛒</span> Planificador de Compras</a></li>
+        <li class="admin-only"><a href="#" id="nav-consumed"><span class="icon">🔍</span> Consumo por Fecha (Turnos)</a></li>
       </ul>
       <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); margin-bottom:10px;">
         <button id="btn-refresh-app" class="btn btn-secondary w-full" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: #60a5fa; display:flex; justify-content:center; align-items:center; gap:8px;">
@@ -1051,6 +1052,79 @@
            </div>
         </div>
       </section>
+      <!-- Consumed by Date View -->
+      <section id="view-consumed" class="view hidden">
+        <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>🔍 Consumos Detallados por Fecha</h2>
+            <p style="margin-top:5px; color:var(--text-muted);">Análisis de insumos utilizados basado en tickets de venta.</p>
+          </div>
+          <div style="display:flex; gap:15px; align-items:flex-end;">
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Desde:</label>
+              <input type="date" id="consumed-date-from" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:145px;">
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
+              <input type="date" id="consumed-date-to" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:145px;">
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Turno:</label>
+              <select id="consumed-shift-filter" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:120px; height:42px;">
+                <option value="Todo">Todo el Día</option>
+                <option value="Día">☀️ Diurno</option>
+                <option value="Noche">🌙 Nocturno</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Proyección:</label>
+              <select id="consumed-projection-mode" style="padding:10px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:150px; height:42px;">
+                <option value="1">Consumo Real</option>
+                <option value="avg">Promedio Diario</option>
+                <option value="7">Proyección Semanal</option>
+                <option value="15">Proyección Quincenal</option>
+                <option value="30">Proyección Mensual</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btn-filter-consumed" style="height:42px; padding:0 20px;">🔍 Calcular</button>
+          </div>
+        </header>
+
+        <div class="cards-grid">
+          <div class="glass-panel" style="grid-column: span 3; padding:0; overflow:hidden;">
+            <div style="padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(255,255,255,0.01);">
+              <div style="display:flex; align-items:center; gap:15px;">
+                <h3 style="margin:0;">🥩 Insumos Consumidos</h3>
+                <input type="text" id="consumed-search" placeholder="🔍 Buscar insumo por nombre o categoría..." style="width:300px; padding:8px 15px; border-radius:30px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.2); color:white; font-size:13px; outline:none;">
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.05); padding:5px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.1);">
+                   <input type="checkbox" id="consumed-chk-group" style="width:16px; height:16px; cursor:pointer;">
+                   <label for="consumed-chk-group" style="font-size:12px; margin:0; cursor:pointer;">Unificar Grupos</label>
+                </div>
+                <button class="btn btn-secondary" id="btn-toggle-consumed-hidden" style="font-size:12px; padding:5px 12px;">👁️ Ver Ocultos</button>
+                <button class="btn btn-secondary" id="btn-export-consumed-pdf" style="font-size:12px; padding:5px 12px; border-color:#10b981; color:#10b981;">📄 PDF</button>
+              </div>
+            </div>
+            <table class="data-table" style="margin-top:0;">
+              <thead>
+                <tr>
+                  <th style="width:30%;">Insumo / Articulo</th>
+                  <th style="width:15%;">Categoría</th>
+                  <th style="width:15%; text-align:right;" id="consumed-th-qty">Cantidad Total</th>
+                  <th style="width:10%;">Ud.</th>
+                  <th style="width:20%; text-align:center;">Grupo Sumador (Alias)</th>
+                  <th style="width:10%; text-align:center;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="consumed-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:50px; color:var(--text-muted);">Configurá el filtro y tocá "Calcular" para ver el consumo real.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- MODAL: Z Bulk Loader -->
       <div id="z-bulk-modal" class="modal hidden">
         <div class="modal-content glass-panel" style="width:900px; max-width:95vw; max-height:90vh; overflow:hidden; display:flex; flex-direction:column;">
@@ -3437,26 +3511,48 @@
       // Initial check for stock alerts
       calculateDashboardVariables();
 
+      function switchView(viewId) {
+        navLinks.forEach(n => n.classList.remove('active'));
+        const activeLink = document.getElementById(`nav-${viewId}`);
+        if (activeLink) activeLink.classList.add('active');
+
+        views.forEach(v => {
+          v.classList.add('hidden');
+          v.classList.remove('active');
+        });
+        const targetView = document.getElementById(`view-${viewId}`);
+        if (targetView) {
+          targetView.classList.remove('hidden');
+          targetView.classList.add('active');
+        }
+
+        // Specific loaders
+        if (viewId === 'dashboard') loadDashboardView();
+        if (viewId === 'pos') loadPOSView();
+        if (viewId === 'audit') loadAuditView();
+        if (viewId === 'history') loadHistoryView();
+        if (viewId === 'inventory') loadInventoryView();
+        if (viewId === 'recipes') loadRecipesView();
+        if (viewId === 'zreport') loadZReportView();
+        if (viewId === 'analytics') loadAnalyticsView();
+        if (viewId === 'eerr') loadEERRView();
+        if (viewId === 'procurement') loadProcurementView();
+        if (viewId === 'consumed') {
+           const dFrom = document.getElementById('consumed-date-from');
+           if (dFrom && !dFrom.value) dFrom.valueAsDate = new Date();
+           loadConsumedView();
+        }
+        if (viewId === 'calculator') { 
+          const btnLoadCalc = document.getElementById('btn-load-calc-items'); 
+          if(btnLoadCalc) btnLoadCalc.click(); 
+        }
+      }
+
       navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
-          navLinks.forEach(n => n.classList.remove('active'));
-          link.classList.add('active');
-          const targetId = link.id.replace('nav-', 'view-');
-          views.forEach(v => v.classList.add('hidden'));
-          document.getElementById(targetId).classList.remove('hidden');
-
-          if (targetId === 'view-inventory') loadInventoryView();
-          if (targetId === 'view-audit') loadAuditView();
-          if (targetId === 'view-pos') loadPOSView();
-          if (targetId === 'view-dashboard') loadDashboardView();
-          if (targetId === 'view-recipes') loadRecipesView();
-          if (targetId === 'view-history') loadHistoryView();
-          if (targetId === 'view-analytics') loadAnalyticsView();
-          if (targetId === 'view-procurement') loadProcurementView();
-          if (targetId === 'view-zreport') loadZReportView();
-          if (targetId === 'view-eerr') loadEERRView();
-          if (targetId === 'view-calculator') { const btnLoadCalc = document.getElementById('btn-load-calc-items'); if(btnLoadCalc) btnLoadCalc.click(); }
+          const viewId = link.id.replace('nav-', '');
+          switchView(viewId);
         });
       });
 
@@ -4061,9 +4157,232 @@
       const btnRefresh = document.getElementById('btn-refresh-app');
       if (btnRefresh) btnRefresh.onclick = () => location.reload();
 
+      // --- Consumed View Logic ---
+      let consumedHiddenItems = JSON.parse(localStorage.getItem('wlb_consumed_hidden') || '[]');
+      let consumedPinnedItems = JSON.parse(localStorage.getItem('wlb_consumed_pinned') || '[]');
+      let consumedAliases = JSON.parse(localStorage.getItem('wlb_consumed_aliases') || '{}');
+      let showConsumedHidden = false;
+      let lastConsumedData = []; // Store raw aggregated data for re-filtering
+      let lastConsumedDays = 1;
+
+      async function loadConsumedView() {
+        showLoading(true);
+        const fromDate = document.getElementById('consumed-date-from').value;
+        const toDate = document.getElementById('consumed-date-to').value;
+        const shift = document.getElementById('consumed-shift-filter').value;
+        const groupEnabled = document.getElementById('consumed-chk-group').checked;
+
+        if (!fromDate) { showLoading(false); return; }
+
+        let salesQuery = supabase.from('sales').select('id');
+        salesQuery = salesQuery.gte('sale_date', fromDate);
+        if (toDate) salesQuery = salesQuery.lte('sale_date', toDate);
+        if (shift !== 'Todo') salesQuery = salesQuery.eq('shift', shift);
+
+        const { data: sales } = await salesQuery;
+        const saleIds = sales ? sales.map(s => s.id) : [];
+
+        if (saleIds.length === 0) {
+          document.getElementById('consumed-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--text-muted);">No se encontraron ventas para este periodo/turno.</td></tr>';
+          showLoading(false);
+          return;
+        }
+
+        // Get movements of type sale_deduction linked to these sales
+        const { data: movements } = await supabase.from('stock_movements')
+          .select('item_id, quantity, items(name, unit, category)')
+          .eq('movement_type', 'sale_deduction')
+          .in('reference_id', saleIds.map(String));
+
+        if (!movements || movements.length === 0) {
+          document.getElementById('consumed-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--text-muted);">No hay deducciones de stock registradas para estas ventas.</td></tr>';
+          showLoading(false);
+          return;
+        }
+
+        // Aggregate by item
+        const aggregated = {};
+        movements.forEach(m => {
+          if (!aggregated[m.item_id]) {
+            aggregated[m.item_id] = { 
+              id: m.item_id,
+              name: m.items?.name || '?', 
+              unit: m.items?.unit || '', 
+              category: m.items?.category || 'General', 
+              total: 0 
+            };
+          }
+          aggregated[m.item_id].total += parseFloat(m.quantity);
+        });
+
+        const finalItems = Object.values(aggregated);
+        lastConsumedData = finalItems;
+
+        // Calculate days in range
+        const d1 = new Date(fromDate);
+        const d2 = toDate ? new Date(toDate) : new Date(fromDate);
+        const diffTime = Math.abs(d2 - d1);
+        lastConsumedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        renderConsumedTable();
+        showLoading(false);
+      }
+
+      function renderConsumedTable() {
+        const groupEnabled = document.getElementById('consumed-chk-group').checked;
+        const searchTerm = document.getElementById('consumed-search').value.toLowerCase();
+        const projectionMode = document.getElementById('consumed-projection-mode').value;
+        const thQty = document.getElementById('consumed-th-qty');
+        
+        let projectionFactor = 1;
+        let label = "Cantidad Total";
+
+        if (projectionMode === 'avg') {
+          projectionFactor = 1 / lastConsumedDays;
+          label = "Promedio Diario";
+        } else if (projectionMode === '7') {
+          projectionFactor = 7 / lastConsumedDays;
+          label = "Proyección Semanal (7d)";
+        } else if (projectionMode === '15') {
+          projectionFactor = 15 / lastConsumedDays;
+          label = "Proyección Quincenal (15d)";
+        } else if (projectionMode === '30') {
+          projectionFactor = 30 / lastConsumedDays;
+          label = "Proyección Mensual (30d)";
+        }
+        
+        if (thQty) thQty.innerText = label;
+
+        let itemsToRender = lastConsumedData.map(i => ({...i, displayTotal: i.total * projectionFactor}));
+
+        // Apply Search Filter
+        if (searchTerm) {
+          itemsToRender = itemsToRender.filter(i => 
+            i.name.toLowerCase().includes(searchTerm) || 
+            i.category.toLowerCase().includes(searchTerm) ||
+            (consumedAliases[i.id] || "").toLowerCase().includes(searchTerm)
+          );
+        }
+
+        if (groupEnabled) {
+          const grouped = {};
+          itemsToRender.forEach(item => {
+            const alias = consumedAliases[item.id] || item.name;
+            if (!grouped[alias]) {
+              grouped[alias] = { name: alias, category: item.category, total: 0, displayTotal: 0, unit: item.unit, isGroup: true, children: [] };
+            }
+            grouped[alias].total += item.total;
+            grouped[alias].displayTotal += item.displayTotal;
+            grouped[alias].children.push(item.id);
+          });
+          itemsToRender = Object.values(grouped);
+        }
+
+        // Sort: Pinned first, then alphabet (or by total)
+        itemsToRender.sort((a, b) => {
+          const aPinned = !a.isGroup && consumedPinnedItems.includes(a.id);
+          const bPinned = !b.isGroup && consumedPinnedItems.includes(b.id);
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        const tbody = document.getElementById('consumed-tbody');
+        tbody.innerHTML = itemsToRender.filter(item => {
+          if (item.isGroup) return true;
+          return showConsumedHidden || !consumedHiddenItems.includes(item.id);
+        }).map(item => {
+          const isHidden = !item.isGroup && consumedHiddenItems.includes(item.id);
+          const isPinned = !item.isGroup && consumedPinnedItems.includes(item.id);
+          const alias = item.isGroup ? item.name : (consumedAliases[item.id] || '');
+          const rowStyle = isHidden ? 'opacity:0.4; background:rgba(255,255,255,0.02);' : '';
+          
+          return `<tr style="${rowStyle}">
+            <td style="font-weight:bold;">
+              ${!item.isGroup ? `<span style="cursor:pointer; margin-right:8px; color:${isPinned ? '#f59e0b' : 'rgba(255,255,255,0.2)'};" onclick="window.toggleConsumedPin('${item.id}')">${isPinned ? '⭐' : '☆'}</span>` : ''}
+              ${item.name} ${item.isGroup ? '<span style="color:#8b5cf6; font-size:10px;">(GRUPO)</span>' : ''}
+            </td>
+            <td style="color:var(--text-muted); font-size:12px;">${item.category}</td>
+            <td style="text-align:right; font-weight:bold; font-size:16px; color:var(--primary-color);">${item.displayTotal.toFixed(2)}</td>
+            <td style="color:var(--text-muted); font-size:12px;">${item.unit}</td>
+            <td style="text-align:center;">
+              ${!item.isGroup ? `<input type="text" value="${alias}" placeholder="Nombre del grupo..." 
+                onchange="window.saveConsumedAlias('${item.id}', this.value)" 
+                style="width:140px; padding:5px; font-size:11px; text-align:center; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.2); color:white; border-radius:4px;">` : '--'}
+            </td>
+            <td style="text-align:center;">
+              ${!item.isGroup ? `<button class="btn" style="padding:4px 8px; font-size:11px; ${isHidden ? 'color:#10b981;' : 'color:#ef4444;'}" 
+                onclick="window.toggleConsumedHidden('${item.id}')">${isHidden ? '👁️' : '🚫'}</button>` : '--'}
+            </td>
+          </tr>`;
+        }).join('');
+      }
+
+      window.toggleConsumedPin = (id) => {
+        if (consumedPinnedItems.includes(id)) {
+          consumedPinnedItems = consumedPinnedItems.filter(i => i !== id);
+        } else {
+          consumedPinnedItems.push(id);
+        }
+        localStorage.setItem('wlb_consumed_pinned', JSON.stringify(consumedPinnedItems));
+        renderConsumedTable();
+      };
+
+      window.saveConsumedAlias = (id, val) => {
+        consumedAliases[id] = val;
+        localStorage.setItem('wlb_consumed_aliases', JSON.stringify(consumedAliases));
+        if (document.getElementById('consumed-chk-group').checked) renderConsumedTable();
+      };
+
+      window.toggleConsumedHidden = (id) => {
+        if (consumedHiddenItems.includes(id)) {
+          consumedHiddenItems = consumedHiddenItems.filter(i => i !== id);
+        } else {
+          consumedHiddenItems.push(id);
+        }
+        localStorage.setItem('wlb_consumed_hidden', JSON.stringify(consumedHiddenItems));
+        renderConsumedTable();
+      };
+      document.getElementById('btn-filter-consumed').onclick = loadConsumedView;
+      document.getElementById('consumed-chk-group').onchange = renderConsumedTable;
+      document.getElementById('consumed-projection-mode').onchange = renderConsumedTable;
+      document.getElementById('consumed-search').oninput = renderConsumedTable;
+      document.getElementById('btn-toggle-consumed-hidden').onclick = () => {
+        showConsumedHidden = !showConsumedHidden;
+        document.getElementById('btn-toggle-consumed-hidden').innerText = showConsumedHidden ? "👁️‍🗨️ Ocultar No Usados" : "👁️ Ver Ocultos";
+        loadConsumedView();
+      };
+
+      document.getElementById('btn-export-consumed-pdf').onclick = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'pt', 'a4');
+        const fromDate = document.getElementById('consumed-date-from').value;
+        const toDate = document.getElementById('consumed-date-to').value;
+        const title = `Reporte de Consumo: ${fromDate} ${toDate ? 'al ' + toDate : ''}`;
+        
+        doc.setFontSize(18);
+        doc.text(title, 40, 40);
+        
+        const rows = Array.from(document.querySelectorAll('#consumed-tbody tr')).map(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length < 4) return null;
+          return [tds[0].innerText, tds[1].innerText, tds[2].innerText, tds[3].innerText];
+        }).filter(r => r !== null);
+
+        doc.autoTable({
+          startY: 60,
+          head: [['Insumo', 'Categoría', 'Cantidad', 'Unidad']],
+          body: rows,
+        });
+
+        doc.save(`Consumo_${fromDate}.pdf`);
+      };
+
       await loadDashboardView();
+      showLoading(false);
     }
 
+    // --- EXECUTION ---
     initApp();
   </script>
 </body>
