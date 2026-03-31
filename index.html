@@ -38,6 +38,7 @@
         <li class="admin-only"><a href="#" id="nav-analytics"><span class="icon">📊</span> Análisis y Proyecciones</a></li>
         <li class="admin-only"><a href="#" id="nav-procurement"><span class="icon">🛒</span> Planificador de Compras</a></li>
         <li class="admin-only"><a href="#" id="nav-consumed"><span class="icon">🔍</span> Consumo por Fecha (Turnos)</a></li>
+        <li class="admin-only"><a href="#" id="nav-product-sales"><span class="icon">📸</span> Galería de Ventas (Top)</a></li>
       </ul>
       <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); margin-bottom:10px;">
         <button id="btn-refresh-app" class="btn btn-secondary w-full" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: #60a5fa; display:flex; justify-content:center; align-items:center; gap:8px;">
@@ -253,16 +254,25 @@
       <section id="view-history" class="view hidden">
         <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
           <h2>Historial de Ventas y Tickets</h2>
-          <div style="display:flex; gap:15px; align-items:flex-end;">
-            <div>
-              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Desde:</label>
-              <input type="date" id="history-date-from" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+          <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-end;">
+            <div style="display:flex; gap:15px; align-items:flex-end;">
+              <div>
+                <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Desde:</label>
+                <input type="date" id="history-date-from" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+              </div>
+              <div>
+                <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
+                <input type="date" id="history-date-to" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+              </div>
+              <button class="btn btn-primary" id="btn-filter-history" style="padding:8px 15px;">🔍 Filtrar Rango</button>
             </div>
-            <div>
-              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
-              <input type="date" id="history-date-to" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            <div style="display:flex; gap:8px;">
+               <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="window.setHistoryRange(0)">Hoy</button>
+               <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="window.setHistoryRange(7)">7 Días</button>
+               <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="window.setHistoryRange(15)">15 Días</button>
+               <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="window.setHistoryRange(-1)">Mes Actual</button>
+               <button class="btn btn-secondary" style="font-size:10px; padding:4px 8px;" onclick="window.setHistoryRange(-2)">Mes Pasado</button>
             </div>
-            <button class="btn btn-primary" id="btn-filter-history" style="padding:8px 15px;">🔍 Filtrar Rango</button>
           </div>
         </header>
 
@@ -1125,6 +1135,46 @@
         </div>
       </section>
 
+      <!-- Product Sales Gallery View -->
+      <section id="view-product-sales" class="view hidden">
+        <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>📸 Galería de Productos Vendidos</h2>
+            <p style="margin-top:5px; color:var(--text-muted);">Visualización por fotos y volumen de ventas</p>
+          </div>
+          <div style="display:flex; gap:15px; align-items:flex-end;">
+            <div>
+              <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:4px;">Tipo de Vista:</label>
+              <select id="psales-display-mode" style="padding:8px; border-radius:8px; border:1px solid var(--panel-border); background:rgba(255,255,255,0.05); color:white; width:130px;">
+                <option value="grid">📸 Galería</option>
+                <option value="list">📝 Lista</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Desde:</label>
+              <input type="date" id="psales-date-from" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            </div>
+            <div>
+              <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
+              <input type="date" id="psales-date-to" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
+            </div>
+            <button class="btn btn-primary" id="btn-filter-psales" style="padding:8px 15px;">🔍 Ver Reporte</button>
+          </div>
+        </header>
+
+        <div style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.setPSalesRange(0)">Hoy</button>
+            <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.setPSalesRange(7)">Últimos 7 días</button>
+            <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.setPSalesRange(15)">Últimos 15 días</button>
+            <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.setPSalesRange(-1)">Mes Actual</button>
+            <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.setPSalesRange(-2)">Mes Pasado</button>
+        </div>
+
+        <div id="psales-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:20px;">
+           <!-- Cards go here -->
+        </div>
+      </section>
+
       <!-- MODAL: Z Bulk Loader -->
       <div id="z-bulk-modal" class="modal hidden">
         <div class="modal-content glass-panel" style="width:900px; max-width:95vw; max-height:90vh; overflow:hidden; display:flex; flex-direction:column;">
@@ -1159,7 +1209,6 @@
           <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:flex-end;">
             <button class="btn btn-primary" id="btn-save-z-bulk" style="padding:12px 35px; font-size:16px;">💎 GUARDAR TODA LA PLANILLA</button>
           </div>
-        </div>
       </div>
     </main>
   </div>
@@ -1738,16 +1787,20 @@
     if (btnCancelRecipe) btnCancelRecipe.addEventListener('click', resetRecipeForm);
 
     // --- UI Listeners and Loaders ---
-    async function loadHistoryView(fromStr, toStr) {
+    async function loadHistoryView(fromStr, toStrRaw) {
       showLoading(true);
+      const fromD = fromStr || document.getElementById('history-date-from').value;
+      const toDRaw = toStrRaw || document.getElementById('history-date-to').value;
+      const toD = toDRaw || fromD;
+      
       const historyTbody = document.getElementById('history-tbody');
       
       let query = supabase.from('sales')
         .select('*, sale_items(quantity, items(name, sale_price))')
         .order('created_at', { ascending: false });
         
-      if (fromStr) query = query.gte('sale_date', fromStr);
-      if (toStr) query = query.lte('sale_date', toStr);
+      if (fromD) query = query.gte('sale_date', fromD);
+      if (toD) query = query.lte('sale_date', toD);
       
       const { data: sales } = await query;
       
@@ -3529,7 +3582,11 @@
         if (viewId === 'dashboard') loadDashboardView();
         if (viewId === 'pos') loadPOSView();
         if (viewId === 'audit') loadAuditView();
-        if (viewId === 'history') loadHistoryView();
+        if (viewId === 'history') {
+            const dFrom = document.getElementById('history-date-from');
+            if (dFrom && !dFrom.value) dFrom.valueAsDate = new Date();
+            loadHistoryView();
+        }
         if (viewId === 'inventory') loadInventoryView();
         if (viewId === 'recipes') loadRecipesView();
         if (viewId === 'zreport') loadZReportView();
@@ -3540,6 +3597,11 @@
            const dFrom = document.getElementById('consumed-date-from');
            if (dFrom && !dFrom.value) dFrom.valueAsDate = new Date();
            loadConsumedView();
+        }
+        if (viewId === 'product-sales') {
+           const dFrom = document.getElementById('psales-date-from');
+           if (dFrom && !dFrom.value) dFrom.valueAsDate = new Date();
+           loadProductSalesView();
         }
         if (viewId === 'calculator') { 
           const btnLoadCalc = document.getElementById('btn-load-calc-items'); 
@@ -4173,10 +4235,13 @@
       let lastConsumedData = []; // Store raw aggregated data for re-filtering
       let lastConsumedDays = 1;
 
-      async function loadConsumedView() {
+      let lastProductSalesData = [];
+
+      async function loadConsumedView(fromStr, toStrRaw) {
         showLoading(true);
-        const fromDate = document.getElementById('consumed-date-from').value;
-        const toDate = document.getElementById('consumed-date-to').value;
+        const fromDate = fromStr || document.getElementById('consumed-date-from').value;
+        const toDateRaw = toStrRaw || document.getElementById('consumed-date-to').value;
+        const toDate = toDateRaw || fromDate; 
         const shift = document.getElementById('consumed-shift-filter').value;
         const groupEnabled = document.getElementById('consumed-chk-group').checked;
 
@@ -4351,7 +4416,11 @@
         localStorage.setItem('wlb_consumed_hidden', JSON.stringify(consumedHiddenItems));
         renderConsumedTable();
       };
-      document.getElementById('btn-filter-consumed').onclick = loadConsumedView;
+      document.getElementById('btn-filter-consumed').onclick = () => {
+        const fromD = document.getElementById('consumed-date-from').value;
+        const toD = document.getElementById('consumed-date-to').value;
+        loadConsumedView(fromD, toD);
+      };
       document.getElementById('consumed-chk-group').onchange = renderConsumedTable;
       document.getElementById('consumed-projection-mode').onchange = renderConsumedTable;
       document.getElementById('consumed-search').oninput = renderConsumedTable;
@@ -4384,6 +4453,175 @@
         });
 
         doc.save(`Consumo_${fromDate}.pdf`);
+      };
+
+      async function loadProductSalesView() {
+        showLoading(true);
+        const fromDate = document.getElementById('psales-date-from').value;
+        const toDateRaw = document.getElementById('psales-date-to').value;
+        const toDate = toDateRaw || fromDate; // Fallback if only 'from' is set
+        const grid = document.getElementById('psales-grid');
+        
+        if (!fromDate) { showLoading(false); return; }
+
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:50px; color:var(--primary-color); font-weight:bold; font-size:18px;">⌛ Procesando información de ventas... por favor espera.</div>';
+
+        let salesQuery = supabase.from('sales').select('id');
+        salesQuery = salesQuery.gte('sale_date', fromDate);
+        if (toDate) salesQuery = salesQuery.lte('sale_date', toDate);
+
+        const { data: sales } = await salesQuery;
+        const saleIds = sales ? sales.map(s => s.id) : [];
+
+        if (saleIds.length === 0) {
+          grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:50px; color:var(--text-muted);">No hay ventas en este periodo.</div>';
+          showLoading(false);
+          return;
+        }
+
+        const { data: saleItems } = await supabase.from('sale_items')
+          .select('product_id, quantity')
+          .in('sale_id', saleIds);
+
+        if (!saleItems || saleItems.length === 0) {
+          grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:50px; color:var(--text-muted);">No hay productos registrados en estas ventas.</div>';
+          showLoading(false);
+          return;
+        }
+
+        // Aggregate counts
+        const aggregated = {};
+        saleItems.forEach(si => {
+          if (!aggregated[si.product_id]) aggregated[si.product_id] = 0;
+          aggregated[si.product_id] += si.quantity;
+        });
+
+        const productIds = Object.keys(aggregated);
+        const { data: products } = await supabase.from('items').select('id, name, image_url, image_zoom, sale_price').in('id', productIds);
+
+        lastProductSalesData = products.map(p => ({
+          ...p,
+          totalQty: aggregated[p.id] || 0,
+          revenue: (aggregated[p.id] || 0) * (p.sale_price || 0)
+        })).sort((a, b) => b.totalQty - a.totalQty);
+
+        renderProductSalesGallery();
+        showLoading(false);
+      }
+
+      function renderProductSalesGallery() {
+        const grid = document.getElementById('psales-grid');
+        const mode = document.getElementById('psales-display-mode').value;
+        const data = lastProductSalesData;
+
+        if (mode === 'grid') {
+          grid.style.display = 'grid';
+          grid.innerHTML = data.map(p => {
+            const imgZoom = p.image_zoom || 1;
+            const imgHtml = p.image_url ? 
+              `<div style="width:100%; height:180px; border-radius:12px; margin-bottom:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2);">
+                 <img src="${p.image_url}" style="width:100%; height:100%; object-fit:contain; transform: scale(${imgZoom});">
+               </div>` : 
+              `<div style="width:100%; height:180px; background:rgba(255,255,255,0.05); border-radius:12px; margin-bottom:12px; display:flex; align-items:center; justify-content:center; font-size:50px;">🍔</div>`;
+
+            return `
+              <div class="glass-panel" style="padding:15px; text-align:center; border-top: 3px solid var(--primary-color);">
+                 ${imgHtml}
+                 <h3 style="font-size:18px; margin-bottom:5px; color:var(--text-main); height:44px; display:flex; align-items:center; justify-content:center; line-height:1.2;">${p.name}</h3>
+                 <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
+                    Precio: ${formatCurrency(p.sale_price || 0)}
+                 </div>
+                 <div style="background:var(--primary-color); color:black; font-weight:900; font-size:24px; padding:10px; border-radius:8px; display:inline-block; min-width:120px;">
+                    x ${p.totalQty}
+                 </div>
+                 <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+                    Total: ${formatCurrency(p.revenue)}
+                 </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          grid.style.display = 'block';
+          grid.innerHTML = `
+            <div class="glass-panel" style="overflow-x:auto;">
+              <table class="data-table" style="width:100%; text-align:left;">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                    <th style="padding:15px;">Producto</th>
+                    <th style="text-align:center;">Ventas</th>
+                    <th style="text-align:right;">Precio</th>
+                    <th style="text-align:right;">Total Recaudado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${data.map(p => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+                       <td style="padding:12px 15px; font-weight:bold;">${p.name}</td>
+                       <td style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px;">${p.totalQty}</td>
+                       <td style="text-align:right; color:var(--text-muted);">${formatCurrency(p.sale_price || 0)}</td>
+                       <td style="text-align:right; font-weight:bold; color:var(--text-main); font-size:14px;">${formatCurrency(p.revenue)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+      }
+
+      document.getElementById('btn-filter-psales').onclick = loadProductSalesView;
+      document.getElementById('psales-display-mode').onchange = renderProductSalesGallery;
+
+      window.setPSalesRange = (days) => {
+        const from = document.getElementById('psales-date-from');
+        const to = document.getElementById('psales-date-to');
+        const now = new Date();
+        const dTo = new Date();
+        const dFrom = new Date();
+        
+        if (days === 0) {
+          // Today
+        } else if (days === -1) {
+          // Current Month
+          dFrom.setDate(1);
+        } else if (days === -2) {
+          // Last Month
+          dFrom.setMonth(now.getMonth() - 1);
+          dFrom.setDate(1);
+          dTo.setDate(0); // Last day of previous month
+        } else {
+          dFrom.setDate(now.getDate() - (days - 1));
+        }
+        
+        from.valueAsDate = dFrom;
+        to.valueAsDate = dTo;
+        loadProductSalesView();
+      };
+
+      window.setHistoryRange = (days) => {
+        const from = document.getElementById('history-date-from');
+        const to = document.getElementById('history-date-to');
+        const now = new Date();
+        const dTo = new Date();
+        const dFrom = new Date();
+        
+        if (days === 0) {
+          // Today
+        } else if (days === -1) {
+          // Current Month
+          dFrom.setDate(1);
+        } else if (days === -2) {
+          // Last Month
+          dFrom.setMonth(now.getMonth() - 1);
+          dFrom.setDate(1);
+          dTo.setDate(0);
+        } else {
+          dFrom.setDate(now.getDate() - (days - 1));
+        }
+        
+        from.valueAsDate = dFrom;
+        to.valueAsDate = dTo;
+        loadHistoryView();
       };
 
       await loadDashboardView();
