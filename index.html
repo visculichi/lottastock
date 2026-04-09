@@ -509,11 +509,17 @@
                 <input type="number" id="abm-item-cost" placeholder="Ej: 10" value="0" min="0" step="0.01" style="background:rgba(255,255,255,0.05); color:var(--primary-color); font-weight:bold;">
               </div>
             </div>
-            <div style="margin-top:10px;">
-              <label style="color:#ef4444; font-weight:bold;">Reposición Crítica (Avisar Stock Bajo en...)</label>
-              <input type="number" id="abm-item-threshold" placeholder="Stock Mínimo (Ej: 10 unidades o 500gr)" value="0" min="0" step="0.1" style="border: 1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.05);">
+            <div style="margin-top:10px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                <input type="checkbox" id="abm-item-hidden" style="width:18px; height:18px; cursor:pointer;">
+                <label for="abm-item-hidden" style="margin:0; font-size:13px; cursor:pointer; color:var(--text-muted);">🚫 Ocultar este insumo del Inventario / stock central</label>
             </div>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">* El Costo Unitario/Gramos se calcula solo al ingresar el precio del bulto.</p>
+
+            <div style="margin-top:10px;">
+                <label style="color:#ef4444; font-weight:bold;">Umbral de Alerta Stock Mínimo</label>
+                <input type="number" id="abm-item-threshold" placeholder="Ej: 20" value="0" min="0" step="0.1" style="border: 1px solid rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.05);">
+            </div>
+            
+            <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px; margin-top:10px;">* El Costo Unitario/Gramos se calcula solo al ingresar el precio del bulto.</p>
             
             <button class="btn btn-secondary w-full" id="btn-save-item" style="margin-top:10px;">Guardar Insumo</button>
           </div>
@@ -571,14 +577,18 @@
               </div>
             </div>
 
-            <div style="margin-top:15px; display:flex; gap:30px; align-items:center;">
+            <div style="margin-top:15px; display:flex; gap:30px; align-items:center; flex-wrap:wrap;">
               <div style="display:flex; align-items:center;">
                 <input type="checkbox" id="abm-recipe-is-sale" checked style="width:18px; height:18px; margin-right:10px;">
-                <label for="abm-recipe-is-sale" style="margin:0; font-size:14px; cursor:pointer;">Mostrar en Punto de Venta (Venta al Público)</label>
+                <label for="abm-recipe-is-sale" style="margin:0; font-size:14px; cursor:pointer;">Mostrar en POS</label>
               </div>
               <div style="display:flex; align-items:center;">
                 <input type="checkbox" id="abm-recipe-is-production" style="width:18px; height:18px; margin-right:10px;">
-                <label for="abm-recipe-is-production" style="margin:0; font-size:14px; cursor:pointer; color:#a78bfa; font-weight:bold;">⚡ Permitir Registro de Elaboración en Inventario</label>
+                <label for="abm-recipe-is-production" style="margin:0; font-size:14px; cursor:pointer; color:#a78bfa; font-weight:bold;">⚡ Elaboración</label>
+              </div>
+              <div style="display:flex; align-items:center; background:rgba(239,68,68,0.05); padding:5px 10px; border-radius:8px; border:1px solid rgba(239,68,68,0.1);">
+                <input type="checkbox" id="abm-recipe-hidden" style="width:18px; height:18px; margin-right:10px;">
+                <label for="abm-recipe-hidden" style="margin:0; font-size:14px; cursor:pointer; color:#ef4444;">🚫 Ocultar del Stock</label>
               </div>
             </div>
             
@@ -1394,17 +1404,21 @@
 
     // --- API Logic ---
     async function calculateDashboardVariables(fromStr, toStr) {
-      let salesQuery = supabase.from('sales').select('id, created_at');
+      if (!fromStr && !toStr) {
+        const now = new Date();
+        fromStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      }
 
-      if (fromStr) {
-        salesQuery = salesQuery.gte('sale_date', fromStr);
-      }
-      if (toStr) {
-        salesQuery = salesQuery.lte('sale_date', toStr);
-      }
+      let salesQuery = supabase.from('sales').select('id, created_at');
+      if (fromStr) salesQuery = salesQuery.gte('sale_date', fromStr);
+      if (toStr) salesQuery = salesQuery.lte('sale_date', toStr);
 
       const { data: validSales } = await salesQuery;
       const validSaleIds = validSales ? validSales.map(s => s.id) : [];
+
+      if (validSaleIds.length === 0) {
+        return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [] };
+      }
 
       const { data: salesData } = await supabase.from('sale_items')
         .select('quantity, product_id, sale_id, items(name, sale_price)')
@@ -1483,53 +1497,65 @@
     }
 
     async function getComputedItems() {
-      const { data: allItems } = await supabase.from('items').select('*');
-      if (!allItems) return [];
-      const { data: allRecipes } = await supabase.from('recipes').select('*');
-      
-      const recipesMap = {};
-      if (allRecipes) {
-        allRecipes.forEach(r => {
-          if (!recipesMap[r.product_id]) recipesMap[r.product_id] = [];
-          recipesMap[r.product_id].push(r);
-        });
-      }
-      
-      const itemsMap = {};
-      allItems.forEach(i => itemsMap[i.id] = i);
-      
-      function getCost(itemId, visited = new Set()) {
-        const item = itemsMap[itemId];
-        if (!item) return 0;
-        if (item.type === 'raw_material') return Number(item.cost || 0);
-        if (item.computed_cost !== undefined) return item.computed_cost;
+      try {
+        const { data: allItems, error: itemsError } = await supabase.from('items').select('*');
+        if (itemsError) throw itemsError;
+        if (!allItems) return [];
         
-        if (visited.has(itemId)) return 0;
-        visited.add(itemId);
+        const { data: allRecipes, error: recError } = await supabase.from('recipes').select('*');
+        if (recError) throw recError;
         
-        let total = 0;
-        const ingList = recipesMap[itemId] || [];
-        for (let ing of ingList) {
-          total += Number(ing.quantity) * getCost(ing.ingredient_id, new Set(visited));
+        const recipesMap = {};
+        if (allRecipes) {
+          allRecipes.forEach(r => {
+            if (!recipesMap[r.product_id]) recipesMap[r.product_id] = [];
+            recipesMap[r.product_id].push(r);
+          });
         }
-        const yieldSize = Number(item.bulk_size) || 1;
-        const finalCost = total / yieldSize;
-        item.computed_cost = finalCost;
-        return finalCost;
-      }
+        
+        const itemsMap = {};
+        allItems.forEach(i => itemsMap[i.id] = i);
+        
+        const calculationVisited = new Set();
+        function getCost(itemId) {
+          const item = itemsMap[itemId];
+          if (!item) return 0;
+          if (item.type === 'raw_material') return Number(item.cost || 0);
+          if (item.computed_cost !== undefined) return item.computed_cost;
+          
+          if (calculationVisited.has(itemId)) return 0;
+          calculationVisited.add(itemId);
+          
+          let total = 0;
+          const ingList = recipesMap[itemId] || [];
+          for (let ing of ingList) {
+            total += Number(ing.quantity) * getCost(ing.ingredient_id);
+          }
+          
+          const yieldSize = Number(item.bulk_size) || 1;
+          const finalCost = total / yieldSize;
+          
+          calculationVisited.delete(itemId); // Backtrack
+          item.computed_cost = finalCost;
+          return finalCost;
+        }
 
-      allItems.forEach(i => {
-        if (i.type !== 'raw_material') {
-           i.cost = getCost(i.id);
-           // Also build a text summary of ingredients
-           const ingredients = recipesMap[i.id] || [];
-           i.ingredients_text = ingredients.map(ing => {
-             const subItem = itemsMap[ing.ingredient_id];
-             return subItem ? subItem.name : 'Unknown';
-           }).join(', ');
-        }
-      });
-      return allItems;
+        allItems.forEach(i => {
+          if (i.type !== 'raw_material') {
+             i.cost = getCost(i.id);
+             // Also build a text summary of ingredients
+             const ingredients = recipesMap[i.id] || [];
+             i.ingredients_text = ingredients.map(ing => {
+               const subItem = itemsMap[ing.ingredient_id];
+               return subItem ? subItem.name : 'Unknown';
+             }).join(', ');
+          }
+        });
+        return allItems;
+      } catch (err) {
+        console.error("Error en getComputedItems:", err);
+        return [];
+      }
     }
 
     async function getPOSItems() {
@@ -1538,8 +1564,10 @@
     }
 
     async function getInventory() {
-      const { data, error } = await supabase.from('inventory').select('id, deposit_id, item_id, quantity, deposits(name), items(name, unit)');
-      return error ? [] : data;
+      const { data, error } = await supabase.from('inventory').select('id, deposit_id, item_id, quantity, deposits(name), items(name, unit, hide_in_inventory)');
+      if (error) return [];
+      // Filter out items that are marked as hidden
+      return data.filter(i => i.items && i.items.hide_in_inventory !== true);
     }
 
     async function processSale(ticketNumber, items, depositId, saleDateStr) {
@@ -1604,49 +1632,72 @@
     }
 
     async function saveRawMaterial(name, unit, bulkName, bulkSize, cost, category, threshold) {
-      const payload = { name, unit, type: 'raw_material', bulk_name: bulkName, bulk_size: bulkSize, cost: cost, category, low_stock_threshold: threshold };
+      const isHiddenEl = document.getElementById('abm-item-hidden');
+      const isHidden = isHiddenEl ? isHiddenEl.checked : false;
+      const payload = { 
+        name, unit, type: 'raw_material', bulk_name: bulkName, bulk_size: bulkSize, 
+        cost: cost, category, low_stock_threshold: threshold,
+        hide_in_inventory: isHidden
+      };
       let error = null;
-      if (editingRawId) {
-        const { error: err } = await supabase.from('items').update(payload).eq('id', editingRawId);
-        error = err;
-      } else {
-        const { error: err } = await supabase.from('items').insert(payload);
-        error = err;
+      try {
+        if (editingRawId) {
+          const { error: err } = await supabase.from('items').update(payload).eq('id', editingRawId);
+          error = err;
+        } else {
+          const { error: err } = await supabase.from('items').insert(payload);
+          error = err;
+        }
+        if (error) throw error;
+        return { success: true };
+      } catch (err) {
+        console.error("Error guardando materia prima:", err);
+        return { success: false, error: err };
       }
-      return { success: !error, error };
     }
 
     async function saveRecipeProduct(name, ingredients, price, category, isSale, rYield, rUnit, threshold, imageUrl, imageZoom, isProduction) {
+      const isHiddenEl = document.getElementById('abm-recipe-hidden');
+      const isHidden = isHiddenEl ? isHiddenEl.checked : false;
       const typeStr = isSale ? 'final_product' : 'assembled';
       const payload = { 
         name, unit: rUnit, type: typeStr, bulk_name: 'Rendimiento', 
         bulk_size: rYield, sale_price: price, category: category, 
         low_stock_threshold: threshold, image_url: imageUrl,
-        image_zoom: imageZoom, is_production: isProduction
+        image_zoom: imageZoom, is_production: isProduction,
+        hide_in_inventory: isHidden
       };
       let productId = editingRecipeId;
       let error = null;
 
-      if (editingRecipeId) {
-        const { error: err } = await supabase.from('items').update(payload).eq('id', editingRecipeId);
-        error = err;
-        if (!error) await supabase.from('recipes').delete().eq('product_id', editingRecipeId);
-      } else {
-        const { data, error: err } = await supabase.from('items').insert(payload).select().single();
-        if (data) productId = data.id;
-        error = err;
+      try {
+        if (editingRecipeId) {
+          const { error: err } = await supabase.from('items').update(payload).eq('id', editingRecipeId);
+          error = err;
+          if (!error) await supabase.from('recipes').delete().eq('product_id', editingRecipeId);
+        } else {
+          const { data, error: err } = await supabase.from('items').insert(payload).select().single();
+          if (data) productId = data.id;
+          error = err;
+        }
+        
+        if (error) throw error;
+
+        const recipeRows = ingredients.map(ing => ({
+          product_id: productId,
+          ingredient_id: ing.id,
+          quantity: ing.qty
+        }));
+
+        if (recipeRows.length > 0) {
+          const { error: recError } = await supabase.from('recipes').insert(recipeRows);
+          if (recError) throw recError;
+        }
+        return { success: true };
+      } catch (err) {
+        console.error("Error guardando receta:", err);
+        return { success: false, error: err };
       }
-      
-      if (error) return { success: false, error };
-
-      const recipeRows = ingredients.map(ing => ({
-        product_id: productId,
-        ingredient_id: ing.id,
-        quantity: ing.qty
-      }));
-
-      const { error: recError } = await supabase.from('recipes').insert(recipeRows);
-      return { success: !recError, error: recError };
     }
 
     async function deleteItem(id) {
@@ -1664,105 +1715,136 @@
     window.deleteItem = deleteItem;
 
     window.editRawMaterial = async (id) => {
-       showLoading(true);
-       const { data: item } = await supabase.from('items').select('*').eq('id', id).single();
-       if(!item) return showLoading(false);
-       
-       editingRawId = id;
-       abmItemName.value = item.name || '';
-       abmItemCategory.value = item.category || 'General';
-       abmItemUnit.value = item.unit || 'unidades';
-       abmItemBulk.value = item.bulk_name || '';
-       abmItemBulkSize.value = item.bulk_size || 1;
-       abmItemCost.value = item.cost || 0;
-       abmItemThreshold.value = item.low_stock_threshold || 0;
-       
-       // Trigger calculation math for editing
-       const bs = item.bulk_size || 1;
-       const cost = item.cost || 0;
-       abmItemBulkCost.value = (cost * bs).toFixed(2);
-       
-       rawFormTitle.innerText = "Editando Materia Prima";
-       btnCancelRaw.classList.remove('hidden');
-       btnSaveItem.innerText = "Actualizar Insumo";
-       document.getElementById('raw-form-container').scrollIntoView({behavior: "smooth"});
-       showLoading(false);
+      showLoading(true);
+      try {
+        const { data: item, error } = await supabase.from('items').select('*').eq('id', id).single();
+        if (error) throw error;
+        if (!item) return;
+        
+        editingRawId = id;
+        if (abmItemName) abmItemName.value = item.name || '';
+        if (abmItemCategory) abmItemCategory.value = item.category || 'General';
+        if (abmItemUnit) abmItemUnit.value = item.unit || 'unidades';
+        if (abmItemBulk) abmItemBulk.value = item.bulk_name || '';
+        if (abmItemBulkSize) abmItemBulkSize.value = item.bulk_size || 1;
+        if (abmItemCost) abmItemCost.value = item.cost || 0;
+        if (abmItemThreshold) abmItemThreshold.value = item.low_stock_threshold || 0;
+        
+        const hiddenEl = document.getElementById('abm-item-hidden');
+        if (hiddenEl) hiddenEl.checked = !!item.hide_in_inventory;
+        
+        const bs = item.bulk_size || 1;
+        const cost = item.cost || 0;
+        if (abmItemBulkCost) abmItemBulkCost.value = (cost * bs).toFixed(2);
+        
+        rawFormTitle.innerText = "Editando Materia Prima";
+        btnCancelRaw.classList.remove('hidden');
+        btnSaveItem.innerText = "Actualizar Insumo";
+        const container = document.getElementById('raw-form-container');
+        if (container) container.scrollIntoView({behavior: "smooth"});
+      } catch (err) {
+        console.error("Error editando materia prima:", err);
+        await customAlert("Error cargando los datos de la materia prima: " + (err.message || "Elemento faltante"), "Fallo de Servidor");
+      } finally {
+        showLoading(false);
+      }
     };
 
     window.editRecipe = async (id) => {
-       showLoading(true);
-       const { data: item } = await supabase.from('items').select('*').eq('id', id).single();
-       if(!item) return showLoading(false);
-       
-       const { data: recipeItems } = await supabase.from('recipes').select('*').eq('product_id', id);
-       const allItemsData = await getComputedItems();
-       const itemsMap = {};
-       if(allItemsData) allItemsData.forEach(i => itemsMap[i.id] = i);
-       
-       currentRecipeItems = recipeItems.map(r => ({
-         id: r.ingredient_id,
-         name: itemsMap[r.ingredient_id] ? itemsMap[r.ingredient_id].name : 'Insumo Eliminado',
-         cost: itemsMap[r.ingredient_id] ? (itemsMap[r.ingredient_id].cost || 0) : 0,
-         qty: r.quantity
-       }));
-       renderRecipeList();
-       
-       editingRecipeId = id;
-       abmRecipeName.value = item.name || '';
-       abmRecipePrice.value = item.sale_price || 0;
-       abmRecipeCategory.value = item.category || 'Hamburguesas';
-       abmRecipeIsSale.checked = item.type === 'final_product';
-       abmRecipeIsProduction.checked = !!item.is_production;
-       abmRecipeYield.value = item.bulk_size || 1;
-       abmRecipeUnit.value = item.unit || 'unidades';
-       abmRecipeThreshold.value = item.low_stock_threshold || 0;
-       abmRecipeImage.value = item.image_url || '';
-       abmRecipeZoom.value = item.image_zoom || 1;
-       
-       recipeFormTitle.innerText = "Editando Producto Elaborado";
-       btnCancelRecipe.classList.remove('hidden');
-       btnSaveRecipe.innerText = "Actualizar Producto";
-       document.getElementById('recipe-form-container').scrollIntoView({behavior: "smooth"});
-       showLoading(false);
+      showLoading(true);
+      try {
+        const { data: item, error } = await supabase.from('items').select('*').eq('id', id).single();
+        if (error) throw error;
+        if (!item) return;
+        
+        const { data: recipeItems } = await supabase.from('recipes').select('*').eq('product_id', id);
+        const allItemsData = await getComputedItems();
+        const itemsMap = {};
+        if (allItemsData) allItemsData.forEach(i => itemsMap[i.id] = i);
+        
+        currentRecipeItems = (recipeItems || []).map(r => ({
+          id: r.ingredient_id,
+          name: itemsMap[r.ingredient_id] ? itemsMap[r.ingredient_id].name : 'Insumo Eliminado',
+          cost: itemsMap[r.ingredient_id] ? (itemsMap[r.ingredient_id].cost || 0) : 0,
+          qty: r.quantity
+        }));
+        renderRecipeList();
+        
+        editingRecipeId = id;
+        abmRecipeName.value = item.name || '';
+        abmRecipePrice.value = item.sale_price || 0;
+        abmRecipeCategory.value = item.category || 'Hamburguesas';
+        abmRecipeIsSale.checked = item.type === 'final_product';
+        abmRecipeIsProduction.checked = !!item.is_production;
+        abmRecipeYield.value = item.bulk_size || 1;
+        abmRecipeUnit.value = item.unit || 'unidades';
+        abmRecipeThreshold.value = item.low_stock_threshold || 0;
+        abmRecipeImage.value = item.image_url || '';
+        abmRecipeZoom.value = item.image_zoom || 1;
+        
+        const rHiddenEl = document.getElementById('abm-recipe-hidden');
+        if (rHiddenEl) rHiddenEl.checked = !!item.hide_in_inventory;
+        
+        recipeFormTitle.innerText = "Editando Producto Elaborado";
+        btnCancelRecipe.classList.remove('hidden');
+        btnSaveRecipe.innerText = "Actualizar Producto";
+        const container = document.getElementById('recipe-form-container');
+        if (container) container.scrollIntoView({behavior: "smooth"});
+      } catch (err) {
+        console.error("Error editando receta:", err);
+        await customAlert("Error cargando los datos de la receta: " + (err.message || "Error desconocido"), "Fallo de Servidor");
+      } finally {
+        showLoading(false);
+      }
     };
 
     window.duplicateRecipe = async (id) => {
-       showLoading(true);
-       const { data: item } = await supabase.from('items').select('*').eq('id', id).single();
-       if(!item) return showLoading(false);
-       
-       const { data: recipeItems } = await supabase.from('recipes').select('*').eq('product_id', id);
-       const allItemsData = await getComputedItems();
-       const itemsMap = {};
-       if(allItemsData) allItemsData.forEach(i => itemsMap[i.id] = i);
-       
-       currentRecipeItems = recipeItems.map(r => ({
-         id: r.ingredient_id,
-         name: itemsMap[r.ingredient_id] ? itemsMap[r.ingredient_id].name : 'Insumo Eliminado',
-         cost: itemsMap[r.ingredient_id] ? (itemsMap[r.ingredient_id].cost || 0) : 0,
-         qty: r.quantity
-       }));
-       renderRecipeList();
-       
-       editingRecipeId = null;
-       abmRecipeName.value = (item.name || '') + ' (Copia)';
-       abmRecipePrice.value = item.sale_price || 0;
-       abmRecipeCategory.value = item.category || 'Hamburguesas';
-       abmRecipeIsSale.checked = item.type === 'final_product';
-       abmRecipeYield.value = item.bulk_size || 1;
-       abmRecipeUnit.value = item.unit || 'unidades';
-       
-       recipeFormTitle.innerText = "2. Nuevo Producto Elaborado (Copia)";
-       btnCancelRecipe.classList.remove('hidden');
-       btnSaveRecipe.innerText = "Crear Producto Elaborado";
-       document.getElementById('recipe-form-container').scrollIntoView({behavior: "smooth"});
-       showLoading(false);
+      showLoading(true);
+      try {
+        const { data: item, error } = await supabase.from('items').select('*').eq('id', id).single();
+        if (error) throw error;
+        if (!item) return;
+        
+        const { data: recipeItems } = await supabase.from('recipes').select('*').eq('product_id', id);
+        const allItemsData = await getComputedItems();
+        const itemsMap = {};
+        if (allItemsData) allItemsData.forEach(i => itemsMap[i.id] = i);
+        
+        currentRecipeItems = (recipeItems || []).map(r => ({
+          id: r.ingredient_id,
+          name: itemsMap[r.ingredient_id] ? itemsMap[r.ingredient_id].name : 'Insumo Eliminado',
+          cost: itemsMap[r.ingredient_id] ? (itemsMap[r.ingredient_id].cost || 0) : 0,
+          qty: r.quantity
+        }));
+        renderRecipeList();
+        
+        editingRecipeId = null;
+        abmRecipeName.value = (item.name || '') + ' (Copia)';
+        abmRecipePrice.value = item.sale_price || 0;
+        abmRecipeCategory.value = item.category || 'Hamburguesas';
+        abmRecipeIsSale.checked = item.type === 'final_product';
+        abmRecipeYield.value = item.bulk_size || 1;
+        abmRecipeUnit.value = item.unit || 'unidades';
+        
+        recipeFormTitle.innerText = "2. Nuevo Producto Elaborado (Copia)";
+        btnCancelRecipe.classList.remove('hidden');
+        btnSaveRecipe.innerText = "Crear Producto Elaborado";
+        const container = document.getElementById('recipe-form-container');
+        if (container) container.scrollIntoView({behavior: "smooth"});
+      } catch (err) {
+        console.error("Error duplicando receta:", err);
+        await customAlert("Error cargando los datos para duplicar: " + (err.message || "Error desconocido"), "Fallo de Servidor");
+      } finally {
+        showLoading(false);
+      }
     };
 
     function resetRawForm() {
       editingRawId = null;
       abmItemName.value = ''; abmItemCategory.value = 'General'; abmItemBulk.value = ''; abmItemBulkSize.value = '1'; abmItemBulkCost.value = ''; abmItemCost.value = '0';
       abmItemThreshold.value = '0';
+      const hiddenEl = document.getElementById('abm-item-hidden');
+      if (hiddenEl) hiddenEl.checked = false;
       rawFormTitle.innerText = "1. Nueva Materia Prima";
       btnCancelRaw.classList.add('hidden');
       btnSaveItem.innerText = "Guardar Insumo";
@@ -1776,6 +1858,8 @@
       abmRecipeThreshold.value = '0';
       abmRecipeImage.value = '';
       abmRecipeZoom.value = '1';
+      const hiddenEl = document.getElementById('abm-recipe-hidden');
+      if (hiddenEl) hiddenEl.checked = false;
       currentRecipeItems = [];
       renderRecipeList();
       recipeFormTitle.innerText = "2. Nuevo Producto Elaborado";
@@ -1897,7 +1981,8 @@
 
     async function loadInventoryView() {
       showLoading(true);
-      const { data: items } = await supabase.from('items').select('*');
+      // Fetch items that are NOT hidden (or where the flag is not yet set)
+      const { data: items } = await supabase.from('items').select('*').neq('hide_in_inventory', true);
       if(items) {
         allItemsGlobal = items;
         const movList = document.getElementById('mov-item-list');
@@ -2433,30 +2518,35 @@
 
     async function loadRecipesView() {
       showLoading(true);
-      const allItems = await getComputedItems();
-      if (allItems && allItems.length > 0) {
-        allItemsGlobal = allItems;
-        rawItemsData = allItems.filter(i => i.type === 'raw_material');
-        finalItemsData = allItems.filter(i => ['final_product', 'assembled'].includes(i.type));
+      try {
+        const allItems = await getComputedItems();
+        if (allItems && allItems.length > 0) {
+          allItemsGlobal = allItems;
+          rawItemsData = allItems.filter(i => i.type === 'raw_material');
+          finalItemsData = allItems.filter(i => ['final_product', 'assembled'].includes(i.type));
 
-        const dataList = document.getElementById('abm-recipe-ingredient-list');
-        if(dataList) {
-          dataList.innerHTML = allItems.map(i => `<option value="${i.name} (${i.type === 'raw_material' ? 'M.Prima' : 'Elab.'})"></option>`).join('');
+          const dataList = document.getElementById('abm-recipe-ingredient-list');
+          if(dataList) {
+            dataList.innerHTML = allItems.map(i => `<option value="${i.name} (${i.type === 'raw_material' ? 'M.Prima' : 'Elab.'})"></option>`).join('');
+          }
+
+          // Initialize Bulk Add Category Selector
+          const bulkCatSelector = document.getElementById('bulk-target-category');
+          if (bulkCatSelector) {
+              const recipeCats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
+              bulkCatSelector.innerHTML = '<option value="all">Todas las Categorías</option>' + 
+                  recipeCats.map(c => `<option value="${c}">${c}</option>`).join('');
+              renderBulkTargets();
+          }
+
+          renderRawsTable(null);
+          renderRecipesTable(null);
         }
-
-        // Initialize Bulk Add Category Selector
-        const bulkCatSelector = document.getElementById('bulk-target-category');
-        if (bulkCatSelector) {
-            const recipeCats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
-            bulkCatSelector.innerHTML = '<option value="all">Todas las Categorías</option>' + 
-                recipeCats.map(c => `<option value="${c}">${c}</option>`).join('');
-            renderBulkTargets();
-        }
-
-        renderRawsTable(null);
-        renderRecipesTable(null);
+      } catch (err) {
+        console.error("Error en loadRecipesView:", err);
+      } finally {
+        showLoading(false);
       }
-      showLoading(false);
     }
 
     window.renderBulkTargets = () => {
@@ -2932,13 +3022,22 @@
         itemsNameMap[i.id] = i.name;
       });
 
+      // Group sale items by sale_id for O(1) lookup
+      const saleItemsMap = new Map();
+      if (saleItems) {
+        saleItems.forEach(si => {
+          if (!saleItemsMap.has(si.sale_id)) saleItemsMap.set(si.sale_id, []);
+          saleItemsMap.get(si.sale_id).push(si);
+        });
+      }
+
       let totalSales = 0;
       let totalCmv = 0;
       const productsList = {};
       
       filteredSales.forEach(s => {
         let val = parseFloat(s.total_amount) || 0;
-        const itemsInThisSale = (saleItems || []).filter(si => si.sale_id === s.id);
+        const itemsInThisSale = saleItemsMap.get(s.id) || [];
         if (val <= 0) itemsInThisSale.forEach(si => val += (si.quantity * (itemsPriceMap[si.product_id] || 0)));
         totalSales += val;
 
@@ -3163,7 +3262,7 @@
         const uniqueDaysThisMonth = new Set(history.filter(h => h.report_date.substring(0, 7) === currMonthStr).map(h => h.report_date)).size;
         
         const avgDaily = currentTotal / (uniqueDaysThisMonth || 1);
-        const projectedTotal = avgDaily * daysInCurrentMonth;
+        const projectedTotal = avgDaily * daysInMonth;
         
         document.getElementById('z-projection-value').innerText = formatCurrency(projectedTotal);
         document.getElementById('z-projection-detail').innerHTML = `
@@ -3332,7 +3431,7 @@
       const toDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
 
       // Parallel Data Fetching
-      const [expRes, zSalesRes, targetRes, cmvRes] = await Promise.all([
+      const [expRes, zSalesRes, targetRes] = await Promise.all([
         supabase.from('expenses').select('*').gte('expense_date', fromDate).lt('expense_date', toDate).order('expense_date', { ascending: false }),
         supabase.from('daily_z_report').select('manual_actual_sales, report_date').gte('report_date', fromDate).lt('report_date', toDate),
         supabase.from('monthly_targets').select('target_cmv_perc').eq('month_year', periodKey).maybeSingle(),
@@ -3344,7 +3443,24 @@
       const expenses = expRes.data || [];
       let totalFixed = 0;
       if (expenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--text-muted);">No hay gastos registrados en este periodo.</td></tr>';
+        // Fetch previous month to see if we can suggest cloning
+        const prevMonthDate = new Date(year, month - 2, 1);
+        const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+        const prevFrom = `${prevMonthKey}-01`;
+        const prevTo = `${year}-${String(month).padStart(2, '0')}-01`;
+        
+        const { data: prevExpenses } = await supabase.from('expenses').select('*').gte('expense_date', prevFrom).lt('expense_date', prevTo);
+        
+        if (prevExpenses && prevExpenses.length > 0) {
+           tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:40px; color:var(--text-muted);">
+             <p style="margin-bottom:15px;">No hay gastos reales cargados para ${periodKey}.</p>
+             <button class="btn btn-secondary" onclick="window.clonePreviousMonthExpenses('${prevFrom}', '${prevTo}', '${fromDate}')" style="border-color:#8b5cf6; color:#a78bfa;">
+               ♻️ Replicar Gastos Fijos de ${prevMonthKey}
+             </button>
+           </td></tr>`;
+        } else {
+           tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--text-muted);">No hay gastos registrados en este periodo ni en el anterior.</td></tr>';
+        }
       } else {
         totalFixed = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
         tbody.innerHTML = expenses.map(e => `
@@ -3389,18 +3505,21 @@
       const simSales = document.getElementById('eerr-sim-sales');
       simSales.value = Math.round(projectedSales);
 
-      // 3. CMV Actual vs Simulación
-      let theoreticalCmvMoney = 0;
-      if (cmvRes.data && cmvRes.data.length > 0) {
-        theoreticalCmvMoney = cmvRes.data.reduce((acc, curr) => acc + (curr.quantity * (curr.items?.cost || 0)), 0);
-      }
-      const theoreticalCmvPerc = acumuladoZ > 0 ? (theoreticalCmvMoney / acumuladoZ) * 100 : 35;
+      // 3. CMV Actual Real (Source of Truth = Dashboard logic)
+      const lastDay = new Date(year, month, 0).getDate();
+      const toDateInclusive = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      
+      const dashboardMetrics = await calculateDashboardVariables(fromDate, toDateInclusive);
+      const metricsTotalSales = dashboardMetrics.totalSales || acumuladoZ || 1;
+      const metricsCmvTotal = dashboardMetrics.cmvTotal || 0;
+      
+      const theoreticalCmvPerc = (metricsCmvTotal / metricsTotalSales) * 100;
       
       const realCmvPercEl = document.getElementById('eerr-real-cmv-perc');
       if (realCmvPercEl) realCmvPercEl.innerText = `${theoreticalCmvPerc.toFixed(1)}%`;
       
       const simCmv = document.getElementById('eerr-sim-cmv');
-      // Por defecto siempre iniciamos con la ACTUAL del negocio
+      // Set value based on current month's actual CMV
       simCmv.value = Math.round(theoreticalCmvPerc);
 
       window.renderEERRResults = () => {
@@ -3439,6 +3558,27 @@
 
       window.renderEERRResults();
       showLoading(false);
+    }
+
+    window.clonePreviousMonthExpenses = async (prevFrom, prevTo, currentMonthStart) => {
+       const confirm = await customConfirm("¿Deseas migrar los montos y categorías del mes pasado al mes actual para iniciar tu balance?", "Replicar Gastos Fijos");
+       if (!confirm) return;
+       
+       showLoading(true);
+       const { data: prev } = await supabase.from('expenses').select('description, category, amount').gte('expense_date', prevFrom).lt('expense_date', prevTo);
+       
+       if (prev && prev.length > 0) {
+          const newRows = prev.map(e => ({
+             description: e.description,
+             category: e.category,
+             amount: e.amount,
+             expense_date: currentMonthStart
+          }));
+          const { error } = await supabase.from('expenses').insert(newRows);
+          if (error) await customAlert("Error clonando: " + error.message);
+          else await loadEERRView();
+       }
+       showLoading(false);
     }
 
     // Modal/Prompt helpers for inline editing
@@ -3560,8 +3700,18 @@
         updateAuthUI();
       }
 
+      // Default Dashboard Range: Current Month
+      const d = new Date();
+      const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+      const todayInp = d.toISOString().split('T')[0];
+      
+      const dashFrom = document.getElementById('dash-date-from');
+      const dashTo = document.getElementById('dash-date-to');
+      if (dashFrom) dashFrom.value = monthStart;
+      if (dashTo) dashTo.value = todayInp;
+
       // Initial check for stock alerts
-      calculateDashboardVariables();
+      calculateDashboardVariables(monthStart, todayInp);
 
       function switchView(viewId) {
         navLinks.forEach(n => n.classList.remove('active'));
@@ -4103,16 +4253,29 @@
       // ABM Handlers
       if (btnSaveItem) {
         btnSaveItem.addEventListener('click', async () => {
-          const n = abmItemName.value, u = abmItemUnit.value, bn = abmItemBulk.value, bs = abmItemBulkSize.value, c = abmItemCost.value, cat = abmItemCategory.value, th = abmItemThreshold.value;
+          const n = abmItemName ? abmItemName.value : "";
+          const u = abmItemUnit ? abmItemUnit.value : "unidades";
+          const bn = abmItemBulk ? abmItemBulk.value : "";
+          const bs = abmItemBulkSize ? abmItemBulkSize.value : "1";
+          const c = abmItemCost ? abmItemCost.value : "0";
+          const cat = abmItemCategory ? abmItemCategory.value : "General";
+          const th = abmItemThreshold ? abmItemThreshold.value : "0";
+          
           if (!n) { await customAlert('Debes ingresar el nombre del insumo.'); return; }
           showLoading(true);
-          const { success, error } = await saveRawMaterial(n, u, bn, Number(bs) || 1, Number(c) || 0, cat || 'General', Number(th) || 0);
-          if (success) {
-            await customAlert(editingRawId ? 'Materia prima actualizada exitosamente.' : 'Materia prima creada exitosamente.', "Éxito");
-            resetRawForm();
-            await loadRecipesView(); // refresh selects and lists
-          } else await customAlert('Error guardando insumo: ' + error.message, "Error");
-          showLoading(false);
+          try {
+            const { success, error } = await saveRawMaterial(n, u, bn, Number(bs) || 1, Number(c) || 0, cat || 'General', Number(th) || 0);
+            if (success) {
+              await customAlert(editingRawId ? 'Materia prima actualizada exitosamente.' : 'Materia prima creada exitosamente.', "Éxito");
+              resetRawForm();
+              await loadRecipesView(); 
+            } else await customAlert('Error guardando insumo: ' + error.message, "Error");
+          } catch(e) {
+            console.error(e);
+            await customAlert("Error inesperado guardando insumo.");
+          } finally {
+            showLoading(false);
+          }
         });
       }
 
@@ -4149,14 +4312,21 @@
           const rZoom = parseFloat(abmRecipeZoom.value) || 1;
           const isProduction = abmRecipeIsProduction.checked;
           if (!name || currentRecipeItems.length === 0) { await customAlert('Debes ingresar el nombre y al menos un ingrediente.'); return; }
+          
           showLoading(true);
-          const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit, Number(rTh) || 0, rImg, rZoom, isProduction);
-          if (success) {
-            await customAlert(editingRecipeId ? 'Receta actualizada exitosamente.' : 'Receta creada exitosamente.', "Éxito");
-            resetRecipeForm();
-            await loadRecipesView(); // refresh lists
-          } else await customAlert('Error guardando receta: ' + error.message, "Error");
-          showLoading(false);
+          try {
+            const { success, error } = await saveRecipeProduct(name, currentRecipeItems, Number(price) || 0, cat || 'General', isSale, rYield, rUnit, Number(rTh) || 0, rImg, rZoom, isProduction);
+            if (success) {
+              await customAlert(editingRecipeId ? 'Receta actualizada exitosamente.' : 'Receta creada exitosamente.', "Éxito");
+              resetRecipeForm();
+              await loadRecipesView(); 
+            } else await customAlert('Error guardando receta: ' + error.message, "Error");
+          } catch(e) {
+            console.error(e);
+            await customAlert("Error crítico guardando receta.");
+          } finally {
+            showLoading(false);
+          }
         });
       }
 
