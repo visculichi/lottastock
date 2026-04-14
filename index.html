@@ -3182,7 +3182,11 @@
       // Update History Table
       const historyTbody = document.getElementById('z-history-tbody');
       if (historyTbody) {
-        historyTbody.innerHTML = history.slice(0, 10).map(h => {
+        const now = new Date();
+        const currMonthStr = now.toISOString().substring(0, 7);
+        const currentMonthData = history.filter(h => h.report_date.substring(0, 7) === currMonthStr);
+        
+        historyTbody.innerHTML = currentMonthData.map(h => {
            const diff = h.manual_actual_sales - h.system_ticket_sales;
            return `<tr>
              <td>${h.report_date}</td>
@@ -3199,14 +3203,20 @@
       const dowStats = { 0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[] };
       const dowNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 
+      const dailyGrouped = {};
       revHistory.forEach(h => {
         const m = h.report_date.substring(0, 7);
         if (!monthsMap[m]) monthsMap[m] = { sales: 0, cmv: 0 };
         monthsMap[m].sales += parseFloat(h.manual_actual_sales);
         monthsMap[m].cmv += parseFloat(h.system_total_cmv);
-        
-        const day = new Date(h.report_date + 'T00:00:00').getDay();
-        dowStats[day].push(parseFloat(h.manual_actual_sales));
+
+        if (!dailyGrouped[h.report_date]) dailyGrouped[h.report_date] = 0;
+        dailyGrouped[h.report_date] += parseFloat(h.manual_actual_sales);
+      });
+
+      Object.keys(dailyGrouped).forEach(dateStr => {
+        const day = new Date(dateStr + 'T00:00:00').getDay();
+        dowStats[day].push(dailyGrouped[dateStr]);
       });
 
       // Update DOW List
@@ -3262,7 +3272,7 @@
         const uniqueDaysThisMonth = new Set(history.filter(h => h.report_date.substring(0, 7) === currMonthStr).map(h => h.report_date)).size;
         
         const avgDaily = currentTotal / (uniqueDaysThisMonth || 1);
-        const projectedTotal = avgDaily * daysInMonth;
+        const projectedTotal = avgDaily * daysInCurrentMonth;
         
         document.getElementById('z-projection-value').innerText = formatCurrency(projectedTotal);
         document.getElementById('z-projection-detail').innerHTML = `
