@@ -8,12 +8,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
+  <script>
+    // Immediate error catcher
+    window.onerror = function(msg, url, line, col, error) {
+      alert("Error detectable: " + msg + "\nLínea: " + line);
+      return false;
+    };
+  </script>
   <div class="app-container glass">
+
     <!-- Sidebar -->
     <nav class="sidebar glass-panel">
       <div class="logo">
@@ -69,7 +76,7 @@
       <section id="view-dashboard" class="view active">
         <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <h2>Dashboard Financiero y Ranking</h2>
+            <h2>Dashboard Financiero y Ranking <button onclick="window.debugDashboard()" title="Diagnóstico de Datos" style="font-size:14px; opacity:0.5; background:none; border:none; color:white; cursor:pointer;">🔍</button></h2>
             <p style="margin-top:5px; color:var(--text-muted);">Métricas de Negocio y Productos Más Vendidos</p>
           </div>
           <div style="display:flex; gap:15px; align-items:flex-end;">
@@ -1404,26 +1411,59 @@
 
     // --- API Logic ---
     async function calculateDashboardVariables(fromStr, toStr) {
-      if (!fromStr && !toStr) {
-        const now = new Date();
-        fromStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      }
+      try {
+        if (!fromStr && !toStr) {
+          const now = new Date();
+          fromStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        }
 
-      let salesQuery = supabase.from('sales').select('id, created_at');
-      if (fromStr) salesQuery = salesQuery.gte('sale_date', fromStr);
-      if (toStr) salesQuery = salesQuery.lte('sale_date', toStr);
+        // 1. Get sales that have a populated sale_date within range
+        let q1 = supabase.from('sales').select('id');
+        if (fromStr) q1 = q1.gte('sale_date', fromStr);
+        if (toStr) q1 = q1.lte('sale_date', toStr);
+        
+        // 2. Get older sales where sale_date is null but created_at is within range
+        let q2 = supabase.from('sales').select('id').is('sale_date', null);
+        if (fromStr) q2 = q2.gte('created_at', fromStr);
+        if (toStr) q2 = q2.lte('created_at', toStr + 'T23:59:59');
 
-      const { data: validSales } = await salesQuery;
-      const validSaleIds = validSales ? validSales.map(s => s.id) : [];
+        // Fetch both simultaneously
+        const [res1, res2] = await Promise.all([q1, q2]);
 
-      if (validSaleIds.length === 0) {
+        // Merge IDs avoiding duplicates just in case
+        const finalIds = new Set();
+        if (res1.data) res1.data.forEach(s => finalIds.add(s.id));
+        if (res2.data) res2.data.forEach(s => finalIds.add(s.id));
+
+        const validSaleIds = Array.from(finalIds);
+
+        if (validSaleIds.length === 0) {
+          return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [] };
+        }
+
+        return calculateDashboardVariablesInternal(validSaleIds);
+      } catch (err) {
+        console.error("Dashboard variables error:", err);
         return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [] };
       }
+    }
 
-      const { data: salesData } = await supabase.from('sale_items')
-        .select('quantity, product_id, sale_id, items(name, sale_price)')
-        .in('sale_id', validSaleIds);
 
+    async function calculateDashboardVariablesInternal(validSaleIds) {
+      // 1. Get Sale Items in Chunks to avoid URI Too Long error
+      let salesData = [];
+      const CHUNK_SIZE = 150;
+      for (let i = 0; i < validSaleIds.length; i += CHUNK_SIZE) {
+        const chunk = validSaleIds.slice(i, i + CHUNK_SIZE);
+        const { data: chunkData, error: chunkErr } = await supabase.from('sale_items')
+          .select('quantity, product_id, sale_id, items(name, sale_price)')
+          .in('sale_id', chunk);
+        
+        if (chunkErr) console.error("Chunk query error:", chunkErr);
+        if (chunkData) salesData = salesData.concat(chunkData);
+      }
+
+      // 2. Get All Items for Cost/Inventory calculation
       const allItems = await getComputedItems();
       const itemsCostMap = {};
       const itemsPriceMap = {};
@@ -1432,15 +1472,17 @@
         itemsPriceMap[i.id] = i.sale_price || 0;
       });
 
+      // 3. Process Sales & CMV
       let totalSales = 0;
       let cmvTotal = 0;
-      let topProducts = {};
+      const topProducts = {};
 
       if (salesData) {
         salesData.forEach(si => {
-          const qty = si.quantity || 0;
+          const qty = Number(si.quantity) || 0;
+          // Use item's current price as fallback if not in sale_items (though it should be)
+          const price = si.items?.sale_price || itemsPriceMap[si.product_id] || 0;
           const cost = itemsCostMap[si.product_id] || 0;
-          const price = itemsPriceMap[si.product_id] || 0;
           
           totalSales += (qty * price);
           cmvTotal += (qty * cost);
@@ -1930,9 +1972,33 @@
 
     async function loadDashboardView(fromStr, toStr) {
       showLoading(true);
+      try {
+
+      
+      // Sync UI inputs if they are empty
+      const fromInp = document.getElementById('dash-date-from');
+      const toInp = document.getElementById('dash-date-to');
+      
+      if (!fromStr && fromInp && fromInp.value) fromStr = fromInp.value;
+      if (!toStr && toInp && toInp.value) toStr = toInp.value;
+
       const metrics = await calculateDashboardVariables(fromStr, toStr);
+      
+      // If we got results and inputs were empty, set them to the defaults used
+      if (!fromStr) {
+         const now = new Date();
+         fromStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+         if (fromInp) fromInp.value = fromStr;
+      }
+      if (!toStr) {
+         const now = new Date();
+         toStr = now.toISOString().split('T')[0];
+         if (toInp) toInp.value = toStr;
+      }
+
       dashSales.innerText = formatCurrency(metrics.totalSales);
       dashCmv.innerText = formatCurrency(metrics.cmvTotal);
+
       
       const cmvPercent = metrics.totalSales > 0 ? ((metrics.cmvTotal / metrics.totalSales) * 100).toFixed(1) : 0;
       const dashCmvPerc = document.getElementById('dash-cmv-perc');
@@ -1977,7 +2043,12 @@
       }
 
       showLoading(false);
+      } catch (err) {
+        console.error("loadDashboardView error:", err);
+        showLoading(false);
+      }
     }
+
 
     async function loadInventoryView() {
       showLoading(true);
@@ -3010,8 +3081,17 @@
       document.getElementById('z-status-badge').innerHTML = `<span style="color:#10b981;font-size:11px;">✔️ ${isRange ? 'PERIODO' : 'DIA'} (${filteredSales.length} tickets)</span>`;
 
       const allItems = await getComputedItems();
-      const { data: saleItems } = await supabase.from('sale_items').select('sale_id, product_id, quantity')
-        .in('sale_id', filteredSales.map(s => s.id));
+      
+      let saleItems = [];
+      const fSaleIds = filteredSales.map(s => s.id);
+      const CHUNK_SIZE = 150;
+      for (let i = 0; i < fSaleIds.length; i += CHUNK_SIZE) {
+         const chunk = fSaleIds.slice(i, i + CHUNK_SIZE);
+         const { data: chunkData } = await supabase.from('sale_items')
+           .select('sale_id, product_id, quantity')
+           .in('sale_id', chunk);
+         if (chunkData) saleItems = saleItems.concat(chunkData);
+      }
 
       const itemsCostMap = {};
       const itemsPriceMap = {};
@@ -3769,6 +3849,7 @@
         }
       }
 
+      // 1. Attach Navigation Listeners
       navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
@@ -3777,14 +3858,16 @@
         });
       });
 
+      // 2. Dashboard Filter Logic
       const btnFilterDash = document.getElementById('btn-filter-dash');
       if (btnFilterDash) {
-        btnFilterDash.onclick = () => {
+        btnFilterDash.addEventListener('click', () => {
           const from = document.getElementById('dash-date-from').value;
           const to = document.getElementById('dash-date-to').value;
           loadDashboardView(from, to);
-        };
+        });
       }
+
 
       let calcItemsList = [];
       let showHiddenRows = false; 
@@ -4044,6 +4127,8 @@
           loadHistoryView(fromD, toD);
         });
       }
+
+
 
       const dateField = document.getElementById('pos-sale-date');
       if (dateField) dateField.valueAsDate = new Date();
@@ -4442,10 +4527,17 @@
         }
 
         // Get movements of type sale_deduction linked to these sales
-        const { data: movements } = await supabase.from('stock_movements')
-          .select('item_id, quantity, items(name, unit, category)')
-          .eq('movement_type', 'sale_deduction')
-          .in('reference_id', saleIds.map(String));
+        let movements = [];
+        const CHUNK_SIZE = 150;
+        const sIdStrings = saleIds.map(String);
+        for (let i = 0; i < sIdStrings.length; i += CHUNK_SIZE) {
+           const chunk = sIdStrings.slice(i, i + CHUNK_SIZE);
+           const { data: chunkData } = await supabase.from('stock_movements')
+             .select('item_id, quantity, items(name, unit, category)')
+             .eq('movement_type', 'sale_deduction')
+             .in('reference_id', chunk);
+           if (chunkData) movements = movements.concat(chunkData);
+        }
 
         if (!movements || movements.length === 0) {
           document.getElementById('consumed-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px; color:var(--text-muted);">No hay deducciones de stock registradas para estas ventas.</td></tr>';
@@ -4659,9 +4751,15 @@
           return;
         }
 
-        const { data: saleItems } = await supabase.from('sale_items')
-          .select('product_id, quantity')
-          .in('sale_id', saleIds);
+        let saleItems = [];
+        const CHUNK_SIZE = 150;
+        for (let i = 0; i < saleIds.length; i += CHUNK_SIZE) {
+           const chunk = saleIds.slice(i, i + CHUNK_SIZE);
+           const { data: chunkData } = await supabase.from('sale_items')
+             .select('product_id, quantity')
+             .in('sale_id', chunk);
+           if (chunkData) saleItems = saleItems.concat(chunkData);
+        }
 
         if (!saleItems || saleItems.length === 0) {
           grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:50px; color:var(--text-muted);">No hay productos registrados en estas ventas.</div>';
@@ -4677,7 +4775,13 @@
         });
 
         const productIds = Object.keys(aggregated);
-        const { data: products } = await supabase.from('items').select('id, name, image_url, image_zoom, sale_price').in('id', productIds);
+        
+        let products = [];
+        for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
+           const chunk = productIds.slice(i, i + CHUNK_SIZE);
+           const { data: pChunk } = await supabase.from('items').select('id, name, image_url, image_zoom, sale_price').in('id', chunk);
+           if (pChunk) products = products.concat(pChunk);
+        }
 
         lastProductSalesData = products.map(p => ({
           ...p,
@@ -4804,12 +4908,25 @@
         loadHistoryView();
       };
 
-      await loadDashboardView();
+      try {
+        await loadDashboardView();
+      } catch (e) {
+        console.error("Initial dashboard load failed:", e);
+      }
       showLoading(false);
     }
 
     // --- EXECUTION ---
-    initApp();
+    initApp().catch(err => {
+      console.error("Critical Init Error:", err);
+      window.customAlert ? window.customAlert("Error crítico al iniciar: " + err.message) : alert("Error crítico: " + err.message);
+    });
+
+    window.onerror = function(msg, url, line, col, error) {
+      console.error("Global Error:", msg, "at", line, ":", col);
+      return false;
+    };
   </script>
 </body>
 </html>
+
