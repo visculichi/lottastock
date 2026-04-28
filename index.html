@@ -1187,6 +1187,10 @@
             <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px;" onclick="window.setPSalesRange(-2)">Mes Pasado</button>
         </div>
 
+        <div id="psales-category-filters" style="margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:15px; min-height:40px;">
+           <span style="color:var(--text-muted); font-size:12px;">Filtros de Familia: Calculando...</span>
+        </div>
+
         <div id="psales-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:20px;">
            <!-- Cards go here -->
         </div>
@@ -4501,6 +4505,7 @@
       let lastConsumedDays = 1;
 
       let lastProductSalesData = [];
+      let activePSalesCategories = new Set();
 
       async function loadConsumedView(fromStr, toStrRaw) {
         showLoading(true);
@@ -4779,7 +4784,7 @@
         let products = [];
         for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
            const chunk = productIds.slice(i, i + CHUNK_SIZE);
-           const { data: pChunk } = await supabase.from('items').select('id, name, image_url, image_zoom, sale_price').in('id', chunk);
+           const { data: pChunk } = await supabase.from('items').select('id, name, image_url, image_zoom, sale_price, category').in('id', chunk);
            if (pChunk) products = products.concat(pChunk);
         }
 
@@ -4789,14 +4794,50 @@
           revenue: (aggregated[p.id] || 0) * (p.sale_price || 0)
         })).sort((a, b) => b.totalQty - a.totalQty);
 
+        renderProductSalesCategories();
         renderProductSalesGallery();
         showLoading(false);
       }
 
+      function renderProductSalesCategories() {
+        const container = document.getElementById('psales-category-filters');
+        if (!container) return;
+        const allCats = new Set(lastProductSalesData.map(p => p.category || 'Sin Categoría'));
+        const catArray = Array.from(allCats).sort();
+        
+        if (catArray.length === 0) {
+           container.innerHTML = '<span style="color:var(--text-muted); font-size:12px;">No hay familias en este periodo.</span>';
+           return;
+        }
+
+        container.innerHTML = catArray.map(c => {
+           const isActive = activePSalesCategories.has(c);
+           const bg = isActive ? 'var(--primary-color)' : 'rgba(255,255,255,0.05)';
+           const color = isActive ? '#000' : 'var(--text-main)';
+           const border = isActive ? '1px solid var(--primary-color)' : '1px solid rgba(255,255,255,0.1)';
+           const safeCat = c.replace(/'/g, "\\'");
+           return `<button class="btn" style="padding:6px 15px; border-radius:20px; font-size:12px; background:${bg}; color:${color}; border:${border};" onclick="window.togglePSalesCategory('${safeCat}')">${c}</button>`;
+        }).join('');
+      }
+
+      window.togglePSalesCategory = function(cat) {
+        if (activePSalesCategories.has(cat)) {
+           activePSalesCategories.delete(cat);
+        } else {
+           activePSalesCategories.add(cat);
+        }
+        renderProductSalesCategories();
+        renderProductSalesGallery();
+      };
+
       function renderProductSalesGallery() {
         const grid = document.getElementById('psales-grid');
         const mode = document.getElementById('psales-display-mode').value;
-        const data = lastProductSalesData;
+        
+        let data = lastProductSalesData;
+        if (activePSalesCategories.size > 0) {
+           data = data.filter(p => activePSalesCategories.has(p.category || 'Sin Categoría'));
+        }
 
         if (mode === 'grid') {
           grid.style.display = 'grid';
