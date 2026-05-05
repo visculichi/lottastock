@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   description text NOT NULL,
   category text NOT NULL, -- Ej: 'Alquiler', 'Sueldos', 'Servicios', etc.
   amount numeric NOT NULL DEFAULT 0,
+  is_percentage boolean DEFAULT false, -- Nueva columna para gastos variables
   expense_date date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone DEFAULT now()
 );

@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="style.css">
 
 </head>
@@ -463,9 +464,18 @@
             <h2>Gestor de Insumos y Recetas</h2>
             <p>Da de alta materias primas (paquetes/bultos) y arma tus productos finales.</p>
           </div>
-          <button class="btn btn-secondary" id="btn-toggle-bulk" style="border-color:#8b5cf6; color:#a78bfa; height:44px; display:flex; align-items:center; gap:8px;">
-            <span style="font-size:18px;">⚡</span> <span>Modo Carga Masiva (OnOff)</span>
-          </button>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" id="btn-export-excel" style="border-color:#10b981; color:#10b981; height:44px; display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px;">📥</span> <span>Exportar Excel</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-import-excel" style="border-color:#f59e0b; color:#f59e0b; height:44px; display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px;">📤</span> <span>Importar Excel</span>
+            </button>
+            <input type="file" id="input-import-excel" class="hidden" accept=".xlsx, .xls">
+            <button class="btn btn-secondary" id="btn-toggle-bulk" style="border-color:#8b5cf6; color:#a78bfa; height:44px; display:flex; align-items:center; gap:8px;">
+              <span style="font-size:18px;">⚡</span> <span>Modo Carga Masiva (OnOff)</span>
+            </button>
+          </div>
         </header>
 
         <div class="cards-grid">
@@ -654,18 +664,18 @@
         </div>
         
         <!-- Section: Existing Items Lists -->
-        <div class="cards-grid" style="margin-top:10px;">
-          <div class="glass-panel">
+        <div class="cards-grid" style="margin-top:10px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+          <div class="glass-panel" style="overflow-x: auto;">
             <h3>Listado de Insumos</h3>
             <div id="raw-filters" style="display:flex; gap:10px; margin-top:10px; margin-bottom:15px; overflow-x:auto;"></div>
-            <table class="data-table" style="margin-top:0;">
+            <table class="data-table" style="margin-top:0; min-width: 300px;">
               <tbody id="list-raws"></tbody>
             </table>
           </div>
-          <div class="glass-panel" style="grid-column: span 2;">
+          <div class="glass-panel" style="grid-column: span 2; overflow-x: auto; min-width: 0;">
             <h3>Listado de Elaborados</h3>
             <div id="recipe-filters" style="display:flex; gap:10px; margin-top:10px; margin-bottom:15px; overflow-x:auto;"></div>
-            <table class="data-table" style="margin-top:0;">
+            <table class="data-table" style="margin-top:0; min-width: 600px;">
               <tbody id="list-recipes-table"></tbody>
             </table>
           </div>
@@ -1039,9 +1049,15 @@
                       <option value="📦 Otros"></option>
                     </datalist>
                     
-                    <label>Importe Bruto ($)</label>
+                    <label>Importe ($) o Porcentaje (%)</label>
                     <input type="number" id="eerr-exp-amount" placeholder="0" style="font-size:28px; font-weight:bold; color:#fff; text-align:center; height:60px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); margin-bottom:5px;">
-                    <div id="eerr-exp-amount-preview" style="text-align:center; font-size:14px; color:#10b981; margin-bottom:15px; font-weight:bold; height:20px;">$ 0</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                       <div id="eerr-exp-amount-preview" style="font-size:14px; color:#10b981; font-weight:bold;">$ 0</div>
+                       <div style="display:flex; align-items:center; gap:8px;">
+                          <input type="checkbox" id="eerr-exp-is-perc" style="width:18px; height:18px; margin:0; cursor:pointer;">
+                          <label for="eerr-exp-is-perc" style="margin:0; font-size:13px; color:var(--text-main); cursor:pointer;">¿Es % de Ventas?</label>
+                       </div>
+                    </div>
                     
                     <button class="btn btn-primary w-full" id="btn-save-expense" style="background:#8b5cf6; height:50px; font-size:16px;">💾 Registrar Gasto en EERR</button>
                   </div>
@@ -1399,6 +1415,7 @@
     let currentTicketItems = [];
     let currentRecipeItems = [];
     let defaultDepositId = null;
+    let allRecipesGlobal = []; // Store recipes to avoid refetching for local calculations
 
     let latestInventoryData = [];
     let thresholdMapGlobal = {};
@@ -1550,6 +1567,7 @@
         
         const { data: allRecipes, error: recError } = await supabase.from('recipes').select('*');
         if (recError) throw recError;
+        allRecipesGlobal = allRecipes || [];
         
         const recipesMap = {};
         if (allRecipes) {
@@ -1602,6 +1620,54 @@
         console.error("Error en getComputedItems:", err);
         return [];
       }
+    }
+
+    function recalculateAllCostsLocally() {
+      const recipesMap = {};
+      allRecipesGlobal.forEach(r => {
+        if (!recipesMap[r.product_id]) recipesMap[r.product_id] = [];
+        recipesMap[r.product_id].push(r);
+      });
+
+      const itemsMap = {};
+      allItemsGlobal.forEach(i => {
+        itemsMap[i.id] = i;
+        if (i.type !== 'raw_material') delete i.computed_cost;
+      });
+
+      const calculationVisited = new Set();
+      function getCostLocal(itemId) {
+        const item = itemsMap[itemId];
+        if (!item) return 0;
+        if (item.type === 'raw_material') return Number(item.cost || 0);
+        if (item.computed_cost !== undefined) return item.computed_cost;
+
+        if (calculationVisited.has(itemId)) return 0;
+        calculationVisited.add(itemId);
+
+        let total = 0;
+        const ingList = recipesMap[itemId] || [];
+        for (let ing of ingList) {
+          total += Number(ing.quantity) * getCostLocal(ing.ingredient_id);
+        }
+
+        const yieldSize = Number(item.bulk_size) || 1;
+        const finalCost = total / yieldSize;
+
+        calculationVisited.delete(itemId);
+        item.computed_cost = finalCost;
+        item.cost = finalCost;
+        return finalCost;
+      }
+
+      allItemsGlobal.forEach(i => {
+        if (i.type !== 'raw_material') {
+          getCostLocal(i.id);
+        }
+      });
+      
+      rawItemsData = allItemsGlobal.filter(i => i.type === 'raw_material');
+      finalItemsData = allItemsGlobal.filter(i => ['final_product', 'assembled'].includes(i.type));
     }
 
     async function getPOSItems() {
@@ -2349,8 +2415,9 @@
     };
 
     window.toggleInlineEdit = async (id, field, btnEl) => {
-      const inputEl = document.getElementById(`inline-${field === 'sale_price' ? 'sale' : 'cost'}-${id}`);
-      const textEl = document.getElementById(`text-${field === 'sale_price' ? 'sale' : 'cost'}-${id}`);
+      const isBulkCost = field === 'bulk_cost';
+      const inputEl = document.getElementById(`inline-${isBulkCost ? 'bulk-cost' : (field === 'sale_price' ? 'sale' : 'cost')}-${id}`);
+      const textEl = document.getElementById(`text-${isBulkCost ? 'bulk-cost' : (field === 'sale_price' ? 'sale' : 'cost')}-${id}`);
       if (!inputEl || !textEl) return;
 
       if (inputEl.classList.contains('hidden')) {
@@ -2369,9 +2436,17 @@
         const numVal = parseFloat(inputEl.value);
         if (isNaN(numVal) || numVal < 0) return;
         
-        btnEl.innerText = '⌛';
+        btnEl.innerText = '💾'; // Keep save icon during save or use something subtle
         const payload = {};
-        payload[field] = numVal;
+        let finalValue = numVal;
+        let updateField = field;
+
+        if (field === 'bulk_cost') {
+          const item = allItemsGlobal.find(it => it.id === id);
+          finalValue = numVal / (item.bulk_size || 1);
+          updateField = 'cost';
+        }
+        payload[updateField] = finalValue;
         
         const { error } = await supabase.from('items').update(payload).eq('id', id);
         if (error) {
@@ -2387,25 +2462,176 @@
           btnEl.style.background = 'transparent';
           btnEl.style.border = 'none';
           btnEl.style.padding = '0';
-          btnEl.title = "Editar Precio";
-          
-          setTimeout(() => { 
-            if (btnEl.innerText==='✔️') {
-              btnEl.innerText = '✏️';
-              btnEl.style.opacity = '0.6';
-              btnEl.style.color = 'var(--text-muted)';
-            }
-          }, 1500);
+          btnEl.title = "Guardar";
 
-          const allItems = await getComputedItems();
-          if (allItems && allItems.length > 0) {
-            allItemsGlobal = allItems;
-            rawItemsData = allItems.filter(i => i.type === 'raw_material');
-            finalItemsData = allItems.filter(i => ['final_product', 'assembled'].includes(i.type));
+          // Optimization: Update the item in the global list
+          const updatedItem = allItemsGlobal.find(it => it.id === id);
+          if (updatedItem) {
+            if (isBulkCost) {
+                updatedItem.cost = numVal / (updatedItem.bulk_size || 1);
+            } else {
+                updatedItem[field] = numVal;
+            }
+
+            // If it's a cost change, it affects other recipes, so we MUST recalculate and re-render
+            const needsFullReRender = isBulkCost || field === 'cost';
+            
+            if (needsFullReRender) {
+                recalculateAllCostsLocally();
+                
+                // To avoid the jump, save scroll positions
+                const scrollX = window.scrollX;
+                const scrollY = window.scrollY;
+                const rawsPanel = listRaws.closest('.glass-panel');
+                const recipesPanel = listRecipesTable.closest('.glass-panel');
+                const rawsScroll = rawsPanel ? rawsPanel.scrollTop : 0;
+                const recipesScroll = recipesPanel ? recipesPanel.scrollTop : 0;
+
+                renderRawsTable(null);
+                renderRecipesTable(null);
+
+                // Restore scroll positions
+                window.scrollTo(scrollX, scrollY);
+                if (rawsPanel) rawsPanel.scrollTop = rawsScroll;
+                if (recipesPanel) recipesPanel.scrollTop = recipesScroll;
+            } else if (field === 'sale_price') {
+                // For sale price, just update the CMV info in the DOM for this row
+                const cmvInfo = document.getElementById(`cmv-info-${id}`);
+                if (cmvInfo) {
+                    const cost = updatedItem.cost || 0;
+                    const sale = numVal || 0;
+                    const cmv = sale > 0 ? (cost / sale) * 100 : 0;
+                    const suggested = cost / 0.35;
+                    let cmvColor = '#94a3b8'; let cmvLabel = '---';
+                    if (cmv <= 38) { cmvColor = '#10b981'; cmvLabel = 'IDEAL'; }
+                    else if (cmv > 38 && cmv <= 40) { cmvColor = '#f59e0b'; cmvLabel = 'ATENCIÓN'; }
+                    else if (cmv > 40) { cmvColor = '#ef4444'; cmvLabel = 'ALTO'; }
+                    
+                    cmvInfo.innerHTML = `
+                      <div style="font-size:11px; font-weight:bold; color:${cmvColor}; border:1px solid ${cmvColor}; display:inline-block; padding:2px 6px; border-radius:4px; margin-bottom:4px;">
+                        CMV: ${cmv.toFixed(1)}% (${cmvLabel})
+                      </div>
+                      <div style="font-size:10px; color:var(--text-muted); opacity:0.8;">
+                        Ideal 35%: <span style="color:#10b981; font-weight:bold;">${formatCurrency(suggested)}</span>
+                      </div>
+                    `;
+                }
+            }
+
+            // Restore the pencil icon after a delay
+            setTimeout(() => {
+              const currentBtn = document.getElementById(`btn-edit-${isBulkCost ? 'bulk-cost' : (field === 'sale_price' ? 'sale' : 'cost')}-${id}`);
+              if (currentBtn) {
+                currentBtn.innerText = '✏️';
+                currentBtn.style.color = 'var(--text-muted)';
+                currentBtn.style.opacity = '0.6';
+              }
+            }, 1500);
           }
         }
       }
     };
+
+    const btnExportExcel = document.getElementById('btn-export-excel');
+    if (btnExportExcel) {
+      btnExportExcel.onclick = () => {
+        if (!allItemsGlobal || allItemsGlobal.length === 0) return customAlert("No hay datos para exportar.");
+        
+        const data = allItemsGlobal.map(i => ({
+          'ID (No tocar)': i.id,
+          'Nombre': i.name,
+          'Categoría': i.category,
+          'Tipo': i.type === 'raw_material' ? 'Materia Prima' : 'Producto Elaborado',
+          'Presentación': i.bulk_name || (i.type === 'raw_material' ? 'Bulto' : '-'),
+          'Unidades x Bulto': i.bulk_size || 1,
+          'Precio Bulto (M.P)': i.type === 'raw_material' ? ((i.cost || 0) * (i.bulk_size || 1)) : '-',
+          'Precio Venta (Final)': i.type !== 'raw_material' ? (i.sale_price || 0) : '-',
+          'Unidad de Medida': i.unit
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Precios Stock");
+        XLSX.writeFile(wb, `Precios_WLB_${new Date().toISOString().split('T')[0]}.xlsx`);
+      };
+    }
+
+    const btnImportExcel = document.getElementById('btn-import-excel');
+    const inputImportExcel = document.getElementById('input-import-excel');
+    if (btnImportExcel && inputImportExcel) {
+      btnImportExcel.onclick = () => inputImportExcel.click();
+      
+      inputImportExcel.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          try {
+            showLoading(true);
+            const data = evt.target.result;
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(sheet);
+            
+            if (json.length === 0) throw new Error("El archivo está vacío.");
+            
+            const updates = json.map(row => {
+              const payload = {
+                id: row['ID (No tocar)'],
+                name: row['Nombre'],
+                unit: row['Unidad de Medida'],
+                category: row['Categoría'],
+                bulk_name: row['Presentación'],
+                bulk_size: Number(row['Unidades x Bulto']) || 1
+              };
+
+              // Map Tipo back to DB type
+              const excelType = row['Tipo'];
+              if (excelType === 'Materia Prima') {
+                payload.type = 'raw_material';
+                if (row['Precio Bulto (M.P)'] !== undefined) {
+                    const bSize = Number(row['Unidades x Bulto']) || 1;
+                    payload.cost = Number(row['Precio Bulto (M.P)']) / bSize;
+                }
+              } else {
+                // If it's a product, we don't know if it's assembled or final_product from just the Excel,
+                // but we can try to preserve the existing one or default to final_product.
+                // Actually, the export sets it to "Producto Elaborado". 
+                // To be safe, we'll try to find the item in our global list to get its true type.
+                const existing = allItemsGlobal.find(it => it.id === payload.id);
+                payload.type = existing ? existing.type : 'final_product';
+                
+                if (row['Precio Venta (Final)'] !== undefined) {
+                    payload.sale_price = Number(row['Precio Venta (Final)']);
+                }
+              }
+              
+              return payload;
+            }).filter(u => u.id && u.name && u.type);
+
+            if (updates.length === 0) throw new Error("No se encontraron registros válidos con ID.");
+
+            const confirm = await customConfirm(`Se actualizarán ${updates.length} productos. ¿Continuar?`, "Confirmar Importación");
+            if (!confirm) { showLoading(false); return; }
+
+            const { error } = await supabase.from('items').upsert(updates);
+            if (error) throw error;
+
+            await customAlert(`Se actualizaron ${updates.length} registros exitosamente.`, "Éxito");
+            await loadRecipesView();
+          } catch (err) {
+            console.error(err);
+            await customAlert("Error procesando Excel: " + err.message, "Error");
+          } finally {
+            showLoading(false);
+            inputImportExcel.value = '';
+          }
+        };
+        reader.readAsBinaryString(file);
+      };
+    }
 
     async function loadAuditView() {
       showLoading(true);
@@ -2508,15 +2734,21 @@
 
       const filtered = cat ? rawItemsData.filter(i => (i.category || 'Gral') === cat) : rawItemsData;
       
-      listRaws.innerHTML = filtered.map(i => 
-        `<tr><td>${i.name} <br><span style="font-size:11px;color:var(--text-muted);">(${i.category || 'Gral'})</span></td>
-        <td style="white-space:nowrap;">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <div style="font-weight:bold; color:var(--text-main); font-size:16px;">
-               <span style="color:var(--text-muted); font-size:14px; font-weight:normal;">$</span><span id="text-cost-${i.id}">${formatCurrency(i.cost || 0).replace('$', '').trim()}</span>
-               <input type="number" step="0.01" value="${i.cost || 0}" id="inline-cost-${i.id}" class="hidden" style="width:80px; padding:4px; font-size:14px; border-radius:4px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:white; font-weight:bold; outline:none; margin-left:5px;">
+      listRaws.innerHTML = filtered.map(i => {
+        const bulkPrice = (i.cost || 0) * (i.bulk_size || 1);
+        return `<tr><td>${i.name} <br><span style="font-size:11px;color:var(--text-muted);">(${i.category || 'Gral'})</span></td>
+        <td style="min-width: 150px;">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="font-weight:bold; color:var(--text-main); font-size:16px;">
+                 <span style="color:var(--text-muted); font-size:14px; font-weight:normal;">$</span><span id="text-bulk-cost-${i.id}">${formatCurrency(bulkPrice).replace('$', '').trim()}</span>
+                 <input type="number" step="0.01" value="${bulkPrice.toFixed(2)}" id="inline-bulk-cost-${i.id}" class="hidden" style="width:90px; padding:4px; font-size:14px; border-radius:4px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:white; font-weight:bold; outline:none; margin-left:5px;">
+              </div>
+              <button id="btn-edit-bulk-cost-${i.id}" onclick="window.toggleInlineEdit('${i.id}', 'bulk_cost', this)" style="background:transparent; border:none; color:var(--text-muted); font-size:14px; cursor:pointer; opacity:0.6; padding:0; outline:none; transition:0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Editar Precio Bulto">✏️</button>
             </div>
-            <button id="btn-edit-cost-${i.id}" onclick="window.toggleInlineEdit('${i.id}', 'cost', this)" style="background:transparent; border:none; color:var(--text-muted); font-size:14px; cursor:pointer; opacity:0.6; padding:0; outline:none; transition:0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Editar Precio">✏️</button>
+            <div style="font-size:11px; color:var(--text-muted);">
+              ${i.bulk_name || 'Bulto'} (${i.bulk_size || 1} ${i.unit}) | <span style="color:var(--primary-color);">$ ${formatCurrency(i.cost || 0).replace('$', '').trim()} / ${i.unit}</span>
+            </div>
           </div>
         </td>
         <td>
@@ -2525,7 +2757,7 @@
             <button class="btn btn-secondary" style="padding:4px 8px; color:red;" onclick="window.deleteItem('${i.id}')">Borrar</button>
           </div>
         </td></tr>`
-      ).join('');
+      }).join('');
     }
 
     function renderRecipesTable(cat) {
@@ -2572,11 +2804,13 @@
             else if (cmv > 40) { cmvColor = '#ef4444'; cmvLabel = 'ALTO'; }
             
             return `
-              <div style="font-size:11px; font-weight:bold; color:${cmvColor}; border:1px solid ${cmvColor}; display:inline-block; padding:2px 6px; border-radius:4px; margin-bottom:4px;">
-                CMV: ${cmv.toFixed(1)}% (${cmvLabel})
-              </div>
-              <div style="font-size:10px; color:var(--text-muted); opacity:0.8;">
-                Ideal 35%: <span style="color:#10b981; font-weight:bold;">${formatCurrency(suggested)}</span>
+              <div id="cmv-info-${i.id}">
+                <div style="font-size:11px; font-weight:bold; color:${cmvColor}; border:1px solid ${cmvColor}; display:inline-block; padding:2px 6px; border-radius:4px; margin-bottom:4px;">
+                  CMV: ${cmv.toFixed(1)}% (${cmvLabel})
+                </div>
+                <div style="font-size:10px; color:var(--text-muted); opacity:0.8;">
+                  Ideal 35%: <span style="color:#10b981; font-weight:bold;">${formatCurrency(suggested)}</span>
+                </div>
               </div>
             `;
           })()}
@@ -3556,18 +3790,23 @@
            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--text-muted);">No hay gastos registrados en este periodo ni en el anterior.</td></tr>';
         }
       } else {
-        totalFixed = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        totalFixed = expenses.filter(e => !e.is_percentage).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        const percExpenses = expenses.filter(e => e.is_percentage);
+
         tbody.innerHTML = expenses.map(e => `
-          <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); ${e.is_percentage ? 'background:rgba(139,92,246,0.05);' : ''}">
             <td style="color:#a78bfa; font-weight:bold; font-size:11px;">${(e.category || 'OTROS').toUpperCase()}</td>
             <td>
-              <span id="txt-exp-desc-${e.id}" onclick="window.editExpField('${e.id}', 'description')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">${e.description}</span>
+              <span id="txt-exp-desc-${e.id}" onclick="window.editExpField('${e.id}', 'description')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">${e.description} ${e.is_percentage ? '<small style="color:#a78bfa;">(% Variab.)</small>' : ''}</span>
             </td>
             <td style="text-align:right; font-weight:bold; font-family:monospace;">
-               <span id="txt-exp-amt-${e.id}" onclick="window.editExpField('${e.id}', 'amount')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">${formatCurrency(e.amount)}</span>
+               ${e.is_percentage ? 
+                 `<span id="txt-exp-amt-${e.id}" onclick="window.editExpField('${e.id}', 'amount')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2); color:#a78bfa;">${e.amount}%</span> <br><small id="eerr-calc-val-${e.id}" style="color:var(--text-muted); font-size:10px;">$0</small>` : 
+                 `<span id="txt-exp-amt-${e.id}" onclick="window.editExpField('${e.id}', 'amount')" style="cursor:pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);">${formatCurrency(e.amount)}</span>`
+               }
             </td>
             <td style="text-align:right; font-weight:bold; color:var(--text-muted); font-size:12px;">
-               <span id="eerr-row-inc-${e.id}">0%</span>
+               <span id="eerr-row-inc-${e.id}">${e.is_percentage ? e.amount : '0'}%</span>
             </td>
             <td style="text-align:center;">
               <button class="btn" style="padding:4px; font-size:11px; color:#ef4444;" onclick="window.deleteExpense('${e.id}')">🗑️</button>
@@ -3575,7 +3814,9 @@
           </tr>
         `).join('');
       }
-      document.getElementById('eerr-total-expenses').innerText = formatCurrency(totalFixed);
+      
+      const totalFixedEl = document.getElementById('eerr-total-expenses');
+      if (totalFixedEl) totalFixedEl.innerText = formatCurrency(totalFixed);
       document.getElementById('eerr-calc-fixed').innerText = formatCurrency(totalFixed);
       document.getElementById('eerr-expense-count').innerText = `${expenses.length} registros`;
 
@@ -3623,14 +3864,26 @@
         document.getElementById('eerr-sim-cmv-val').innerText = `${curSimCmv}%`;
         document.getElementById('eerr-calc-cmv-percent').innerText = `Simulación CMV: ${curSimCmv}%`;
         
+        // Calculate variable expenses based on simulated sales
+        let percTotalValue = 0;
+        expenses.filter(e => e.is_percentage).forEach(e => {
+            const val = curSimSales * (parseFloat(e.amount) / 100);
+            percTotalValue += val;
+            const subLabel = document.getElementById(`eerr-calc-val-${e.id}`);
+            if (subLabel) subLabel.innerText = formatCurrency(val);
+        });
+
+        const totalExpenses = totalFixed + percTotalValue;
+        document.getElementById('eerr-calc-fixed').innerText = formatCurrency(totalExpenses);
+
         const cmvMoneyValue = curSimSales * (curSimCmv / 100);
-        const netProfitValue = curSimSales - cmvMoneyValue - totalFixed;
-        const breakEvenValue = totalFixed / (1 - (curSimCmv / 100 || 0.01));
+        const netProfitValue = curSimSales - cmvMoneyValue - totalExpenses;
+        const breakEvenValue = totalExpenses / (1 - (curSimCmv / 100 || 0.01));
 
         document.getElementById('eerr-calc-cmv-money').innerText = formatCurrency(cmvMoneyValue);
         
-        const totalImpactPerc = curSimSales > 0 ? ((totalFixed / curSimSales) * 100).toFixed(1) : 0;
-        document.getElementById('eerr-calc-fixed-percent').innerText = `% Total Incidencia Fija: ${totalImpactPerc}%`;
+        const totalImpactPerc = curSimSales > 0 ? ((totalExpenses / curSimSales) * 100).toFixed(1) : 0;
+        document.getElementById('eerr-calc-fixed-percent').innerText = `% Total Incidencia Operat.: ${totalImpactPerc}%`;
         
         const profitEl = document.getElementById('eerr-net-profit');
         profitEl.innerText = formatCurrency(netProfitValue);
@@ -3644,7 +3897,7 @@
         expenses.forEach(e => {
            const rowIncEl = document.getElementById(`eerr-row-inc-${e.id}`);
            if (rowIncEl) {
-              const percValue = curSimSales > 0 ? (parseFloat(e.amount) / curSimSales * 100).toFixed(2) : '0';
+              const percValue = e.is_percentage ? e.amount : (curSimSales > 0 ? (parseFloat(e.amount) / curSimSales * 100).toFixed(2) : '0');
               rowIncEl.innerText = `${percValue}%`;
            }
         });
@@ -3659,13 +3912,14 @@
        if (!confirm) return;
        
        showLoading(true);
-       const { data: prev } = await supabase.from('expenses').select('description, category, amount').gte('expense_date', prevFrom).lt('expense_date', prevTo);
+       const { data: prev } = await supabase.from('expenses').select('description, category, amount, is_percentage').gte('expense_date', prevFrom).lt('expense_date', prevTo);
        
        if (prev && prev.length > 0) {
           const newRows = prev.map(e => ({
              description: e.description,
              category: e.category,
              amount: e.amount,
+             is_percentage: e.is_percentage || false,
              expense_date: currentMonthStart
           }));
           const { error } = await supabase.from('expenses').insert(newRows);
@@ -3711,7 +3965,13 @@
     // Real-time currency preview
     document.getElementById('eerr-exp-amount').addEventListener('input', (e) => {
        const val = parseFloat(e.target.value) || 0;
-       document.getElementById('eerr-exp-amount-preview').innerText = formatCurrency(val);
+       const isPerc = document.getElementById('eerr-exp-is-perc').checked;
+       document.getElementById('eerr-exp-amount-preview').innerText = isPerc ? `${val}% de facturación` : formatCurrency(val);
+    });
+    document.getElementById('eerr-exp-is-perc').addEventListener('change', () => {
+       const val = parseFloat(document.getElementById('eerr-exp-amount').value) || 0;
+       const isPerc = document.getElementById('eerr-exp-is-perc').checked;
+       document.getElementById('eerr-exp-amount-preview').innerText = isPerc ? `${val}% de facturación` : formatCurrency(val);
     });
  
     // Auto-save target on change
@@ -3724,16 +3984,24 @@
       const desc = document.getElementById('eerr-exp-desc').value;
       const cat = document.getElementById('eerr-exp-cat').value;
       const amount = parseFloat(document.getElementById('eerr-exp-amount').value);
+      const isPerc = document.getElementById('eerr-exp-is-perc').checked;
       const periodKey = document.getElementById('eerr-month').value;
 
       if (!desc || isNaN(amount) || !periodKey) return customAlert("Completá todos los campos para registrar el gasto.");
       
       showLoading(true);
       const dateStr = `${periodKey}-01`;
-      const { error } = await supabase.from('expenses').insert({ description: desc, category: cat, amount: amount, expense_date: dateStr });
+      const { error } = await supabase.from('expenses').insert({ 
+        description: desc, 
+        category: cat, 
+        amount: amount, 
+        is_percentage: isPerc,
+        expense_date: dateStr 
+      });
       if (!error) {
         document.getElementById('eerr-exp-desc').value = '';
         document.getElementById('eerr-exp-amount').value = '';
+        document.getElementById('eerr-exp-is-perc').checked = false;
         await loadEERRView();
       } else {
         await customAlert("Error: " + error.message);
