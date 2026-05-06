@@ -47,6 +47,7 @@
         <li class="admin-only"><a href="#" id="nav-procurement"><span class="icon">🛒</span> Planificador de Compras</a></li>
         <li class="admin-only"><a href="#" id="nav-consumed"><span class="icon">🔍</span> Consumo por Fecha (Turnos)</a></li>
         <li class="admin-only"><a href="#" id="nav-product-sales"><span class="icon">📸</span> Galería de Ventas (Top)</a></li>
+        <li class="admin-only"><a href="#" id="nav-market"><span class="icon">⚔️</span> Estudio de Mercado</a></li>
       </ul>
       <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); margin-bottom:10px;">
         <button id="btn-refresh-app" class="btn btn-secondary w-full" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3); color: #60a5fa; display:flex; justify-content:center; align-items:center; gap:8px;">
@@ -1246,7 +1247,57 @@
           <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); display:flex; justify-content:flex-end;">
             <button class="btn btn-primary" id="btn-save-z-bulk" style="padding:12px 35px; font-size:16px;">💎 GUARDAR TODA LA PLANILLA</button>
           </div>
+        </div>
       </div>
+
+      <!-- Market Study View -->
+      <section id="view-market" class="view hidden">
+        <header class="top-bar glass-panel" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <h2>⚔️ Estudio de Mercado (Excel Dinámico)</h2>
+            <p style="margin-top:5px; color:var(--text-muted);">Gestiona tus precios y los de la competencia. Toca los valores para editar.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" onclick="window.loadMarketView()" style="height:42px;">🔄 Refrescar</button>
+            <button class="btn btn-primary" onclick="window.addMarketProduct()" style="height:42px; background:#8b5cf6;">+ Nueva Burger/Producto</button>
+          </div>
+        </header>
+
+        <div class="cards-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:20px;">
+           <div class="card stat-card glass-panel" style="border-left: 4px solid #8b5cf6;">
+             <h3 style="font-size:12px; color:var(--text-muted); text-transform:uppercase;">Promedio Mercado (Salón)</h3>
+             <p class="stat-value" id="market-avg-store" style="font-size:28px;">$0</p>
+           </div>
+           <div class="card stat-card glass-panel" style="border-left: 4px solid #10b981;">
+             <h3 style="font-size:12px; color:var(--text-muted); text-transform:uppercase;">Mi Precio Promedio (Salón)</h3>
+             <p class="stat-value" id="market-my-avg" style="font-size:28px;">$0</p>
+           </div>
+           <div class="card stat-card glass-panel" style="border-left: 4px solid #f59e0b;">
+             <h3 style="font-size:12px; color:var(--text-muted); text-transform:uppercase;">Diferencia vs Mercado</h3>
+             <p class="stat-value" id="market-global-diff" style="font-size:28px;">0%</p>
+           </div>
+        </div>
+
+        <div class="glass-panel" style="padding:0; overflow:hidden;">
+           <table class="data-table" style="margin:0; border-collapse: collapse;">
+              <thead>
+                 <tr style="background: rgba(139,92,246,0.1);">
+                    <th style="width:220px;">Mi Producto</th>
+                    <th style="width:110px; text-align:right;">Mi Salón</th>
+                    <th style="width:110px; text-align:right;">Mi App</th>
+                    <th style="background: rgba(0,0,0,0.2); border-left: 2px solid rgba(255,255,255,0.1);">Competencia (Local)</th>
+                    <th style="width:110px; text-align:right; background: rgba(0,0,0,0.2);">Precio Salón</th>
+                    <th style="width:110px; text-align:right; background: rgba(0,0,0,0.2);">Precio App</th>
+                    <th style="width:110px; text-align:center;">Diferencia</th>
+                    <th style="width:60px; text-align:center;"></th>
+                 </tr>
+              </thead>
+              <tbody id="market-tbody">
+                 <tr><td colspan="8" style="text-align:center; padding:50px; color:var(--text-muted);">No hay datos. Agrega tu primer producto arriba.</td></tr>
+              </tbody>
+           </table>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -4017,6 +4068,209 @@
       showLoading(false);
     };
 
+    // --- Market Research Logic (Excel Style Overhaul) ---
+    window.loadMarketView = async function() {
+      showLoading(true);
+      try {
+        const { data: marketData, error } = await supabase.from('market_research').select('*').order('product_name');
+        if (error) throw error;
+
+        const tbody = document.getElementById('market-tbody');
+        if (!marketData || marketData.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:50px; color:var(--text-muted);">No hay productos cargados. Empezá agregando uno arriba.</td></tr>';
+          showLoading(false);
+          return;
+        }
+
+        // Group by product name
+        const groups = {};
+        marketData.forEach(row => {
+          if (!groups[row.product_name]) groups[row.product_name] = [];
+          groups[row.product_name].push(row);
+        });
+
+        let totalMy = 0;
+        let totalComp = 0;
+        let compCount = 0;
+        let html = '';
+
+        Object.keys(groups).forEach(pName => {
+          const rows = groups[pName];
+          const master = rows[0]; // First row has my price info
+          totalMy += Number(master.my_price || 0);
+
+          // Render Master Row (My Product Info)
+          html += `
+            <tr style="background: rgba(255,255,255,0.02); border-top: 2px solid rgba(139,92,246,0.3);">
+              <td style="font-weight:bold; color:white; font-size:15px; border-right: 1px solid rgba(255,255,255,0.05);">
+                 <span class="market-editable" onclick="window.editMarketField('${master.id}', 'product_name', '${master.product_name}')">${master.product_name}</span>
+              </td>
+              <td style="text-align:right; font-weight:bold; color:#10b981; font-size:16px;">
+                 <span class="market-editable" onclick="window.editMarketField('${master.id}', 'my_price', '${master.my_price}')">${formatCurrency(master.my_price)}</span>
+              </td>
+              <td style="text-align:right; font-weight:bold; color:#f59e0b; font-size:16px;">
+                 <span class="market-editable" onclick="window.editMarketField('${master.id}', 'my_price_platform', '${master.my_price_platform || 0}')">${formatCurrency(master.my_price_platform || 0)}</span>
+              </td>
+              <td colspan="4" style="background: rgba(0,0,0,0.1); border-left: 2px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:12px; font-style:italic; vertical-align:middle;">
+                 <button class="btn" style="padding:4px 10px; font-size:11px; color:#a78bfa; background:rgba(139,92,246,0.1);" onclick="window.addMarketCompetitorToProduct('${master.product_name}', ${master.my_price}, ${master.my_price_platform || 0})">+ Comparar con otro Local</button>
+              </td>
+              <td style="text-align:center;">
+                 <button onclick="window.deleteMarketProductGroup('${master.product_name}')" style="background:none; border:none; color:#ef4444; opacity:0.3;">🗑️</button>
+              </td>
+            </tr>
+          `;
+
+          // Render Competitor Rows
+          rows.forEach(c => {
+            if (!c.competitor_name) return; // Skip if it was just a product placeholder
+            
+            totalComp += Number(c.price_store || 0);
+            compCount++;
+
+            const diffStore = (master.my_price || 0) - (c.price_store || 0);
+            const diffStorePerc = c.price_store > 0 ? (diffStore / c.price_store * 100).toFixed(1) : 0;
+            const colorStore = diffStore <= 0 ? '#10b981' : '#ef4444';
+
+            const diffApp = (master.my_price_platform || 0) - (c.price_platform || 0);
+            const diffAppPerc = c.price_platform > 0 ? (diffApp / c.price_platform * 100).toFixed(1) : 0;
+            const colorApp = diffApp <= 0 ? '#10b981' : '#ef4444';
+
+            html += `
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
+                <td colspan="3" style="border-right: 1px solid rgba(255,255,255,0.05);"></td>
+                <td style="border-left: 2px solid rgba(255,255,255,0.1); font-weight:bold; color:#a78bfa;">
+                   <span class="market-editable" onclick="window.editMarketField('${c.id}', 'competitor_name', '${c.competitor_name}')">${c.competitor_name}</span>
+                </td>
+                <td style="text-align:right; font-weight:bold; color:white;">
+                   <span class="market-editable" onclick="window.editMarketField('${c.id}', 'price_store', '${c.price_store}')">${formatCurrency(c.price_store)}</span>
+                </td>
+                <td style="text-align:right; font-weight:bold; color:var(--text-muted);">
+                   <span class="market-editable" onclick="window.editMarketField('${c.id}', 'price_platform', '${c.price_platform}')">${formatCurrency(c.price_platform)}</span>
+                </td>
+                <td style="text-align:center; padding: 4px 0;">
+                   <div style="margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                      <div style="font-weight:bold; color:${colorStore}; font-size:12px;">Salón: ${diffStore > 0 ? '+' : ''}${formatCurrency(diffStore)}</div>
+                      <div style="font-size:10px; color:${colorStore}; opacity:0.8;">${diffStorePerc}% ${diffStore > 0 ? '↑' : '↓'}</div>
+                   </div>
+                   <div>
+                      <div style="font-weight:bold; color:${colorApp}; font-size:12px;">App: ${diffApp > 0 ? '+' : ''}${formatCurrency(diffApp)}</div>
+                      <div style="font-size:10px; color:${colorApp}; opacity:0.8;">${diffAppPerc}% ${diffApp > 0 ? '↑' : '↓'}</div>
+                   </div>
+                </td>
+                <td style="text-align:center;">
+                  <button onclick="window.deleteMarketRow('${c.id}')" style="background:none; border:none; color:#ef4444; font-size:12px; opacity:0.6;">✖</button>
+                </td>
+              </tr>
+            `;
+          });
+        });
+
+        tbody.innerHTML = html;
+
+        const avgMy = totalMy / Object.keys(groups).length;
+        const avgComp = compCount > 0 ? totalComp / compCount : 0;
+        const globalDiff = avgComp > 0 ? ((avgMy / avgComp - 1) * 100).toFixed(1) : 0;
+
+        document.getElementById('market-avg-store').innerText = formatCurrency(avgComp);
+        document.getElementById('market-my-avg').innerText = formatCurrency(avgMy);
+        document.getElementById('market-global-diff').innerText = `${globalDiff > 0 ? '+' : ''}${globalDiff}%`;
+
+      } catch (err) {
+        console.error("Market load error:", err);
+      }
+      showLoading(false);
+    };
+
+    window.addMarketProduct = async function() {
+      const pName = await customPrompt("Nombre de la Burger o Producto Propio (ej: Doble Cheese):", "Carga Estudio");
+      if (!pName) return;
+      const myLocal = await customPrompt("TU Precio Local ($):", "Carga Estudio", "number");
+      if (myLocal === null) return;
+      const myApp = await customPrompt("TU Precio App ($):", "Carga Estudio", "number");
+      if (myApp === null) return;
+      
+      const cName = await customPrompt("Nombre de la COMPETENCIA / LOCAL (ej: Burger King):", "Primer Competidor");
+      if (!cName) return;
+      const cLocal = await customPrompt(`Precio Salón de ${cName}:`, "Primer Competidor", "number");
+      if (cLocal === null) return;
+      const cApp = await customPrompt(`Precio App de ${cName}:`, "Primer Competidor", "number");
+      if (cApp === null) return;
+
+      showLoading(true);
+      const { error } = await supabase.from('market_research').insert({
+        product_name: pName,
+        my_price: parseFloat(myLocal) || 0,
+        my_price_platform: parseFloat(myApp) || 0,
+        competitor_name: cName,
+        price_store: parseFloat(cLocal) || 0,
+        price_platform: parseFloat(cApp) || 0
+      });
+      if (error) await customAlert("Error: " + error.message);
+      else await window.loadMarketView();
+      showLoading(false);
+    };
+
+    window.addMarketCompetitorToProduct = async function(pName, myPrice, myApp) {
+      const cName = await customPrompt(`Nombre del Competidor para "${pName}":`, "Añadir Competencia");
+      if (!cName) return;
+      const cLocal = await customPrompt(`Precio Salón de ${cName}:`, "Añadir Competencia", "number");
+      if (cLocal === null) return;
+      const cApp = await customPrompt(`Precio App de ${cName}:`, "Añadir Competencia", "number");
+      if (cApp === null) return;
+
+      showLoading(true);
+      const { error } = await supabase.from('market_research').insert({
+        product_name: pName,
+        my_price: myPrice,
+        my_price_platform: myApp,
+        competitor_name: cName,
+        price_store: parseFloat(cLocal) || 0,
+        price_platform: parseFloat(cApp) || 0
+      });
+      if (error) await customAlert("Error: " + error.message);
+      else await window.loadMarketView();
+      showLoading(false);
+    };
+
+    window.editMarketField = async function(id, field, current) {
+      const isNum = ['my_price', 'my_price_platform', 'price_store', 'price_platform'].includes(field);
+      const newVal = await customPrompt(`Editar ${field}:`, "Estudio Mercado", isNum ? "number" : "text");
+      if (newVal === null || newVal === current) return;
+
+      showLoading(true);
+      const payload = {};
+      payload[field] = isNum ? parseFloat(newVal) : newVal;
+
+      // If we are editing my product name or price, we should ideally sync it across all rows with the same product name
+      // To keep it simple in this architecture, we'll fetch the old row first
+      if (['product_name', 'my_price', 'my_price_platform'].includes(field)) {
+         const { data: oldRow } = await supabase.from('market_research').select('product_name').eq('id', id).single();
+         if (oldRow) {
+            await supabase.from('market_research').update(payload).eq('product_name', oldRow.product_name);
+         }
+      } else {
+         await supabase.from('market_research').update(payload).eq('id', id);
+      }
+      
+      await window.loadMarketView();
+      showLoading(false);
+    };
+
+    window.deleteMarketProductGroup = async function(pName) {
+      if (!await customConfirm(`¿Borrar COMPLETAMENTE "${pName}" y todas sus comparativas?`)) return;
+      showLoading(true);
+      await supabase.from('market_research').delete().eq('product_name', pName);
+      await window.loadMarketView();
+      showLoading(false);
+    };
+
+    window.deleteMarketRow = async function(id) {
+       showLoading(true);
+       await supabase.from('market_research').delete().eq('id', id);
+       await window.loadMarketView();
+       showLoading(false);
+    };
+
     async function initApp() {
       // --- Admin Auth ---
       const btnAdminAuth = document.getElementById('btn-admin-auth');
@@ -4115,6 +4369,7 @@
            if (dFrom && !dFrom.value) dFrom.valueAsDate = new Date();
            loadProductSalesView();
         }
+        if (viewId === 'market') window.loadMarketView();
         if (viewId === 'calculator') { 
           const btnLoadCalc = document.getElementById('btn-load-calc-items'); 
           if(btnLoadCalc) btnLoadCalc.click(); 
