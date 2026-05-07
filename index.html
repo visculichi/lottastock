@@ -1286,8 +1286,10 @@
                     <th style="width:110px; text-align:right;">Mi Salón</th>
                     <th style="width:110px; text-align:right;">Mi App</th>
                     <th style="background: rgba(0,0,0,0.2); border-left: 2px solid rgba(255,255,255,0.1);">Competencia (Local)</th>
+                    <th style="background: rgba(0,0,0,0.2);">Burger Equivalente</th>
                     <th style="width:110px; text-align:right; background: rgba(0,0,0,0.2);">Precio Salón</th>
                     <th style="width:110px; text-align:right; background: rgba(0,0,0,0.2);">Precio App</th>
+                    <th style="width:100px; text-align:center; background: rgba(0,0,0,0.2);">Fecha Relev.</th>
                     <th style="width:110px; text-align:center;">Diferencia</th>
                     <th style="width:60px; text-align:center;"></th>
                  </tr>
@@ -1341,7 +1343,7 @@
     window.customAlert = function(msg, title = "Aviso") {
       return new Promise(resolve => {
         modalTitle.innerText = title;
-        modalMessage.innerText = msg;
+        modalMessage.innerHTML = msg;
         modalBtnCancel.classList.add('hidden');
         customModal.classList.remove('hidden');
         
@@ -1357,7 +1359,7 @@
     window.customConfirm = function(msg, title = "Confirmar Acción") {
       return new Promise(resolve => {
         modalTitle.innerText = title;
-        modalMessage.innerText = msg;
+        modalMessage.innerHTML = msg;
         modalBtnCancel.classList.remove('hidden');
         customModal.classList.remove('hidden');
         
@@ -1377,7 +1379,7 @@
     window.customPrompt = function(msg, title = "Ingresar Dato", type = "text") {
       return new Promise(resolve => {
         modalTitle.innerText = title;
-        modalMessage.innerText = msg;
+        modalMessage.innerHTML = msg;
         modalInput.type = type;
         modalInput.value = '';
         modalInput.classList.remove('hidden');
@@ -4072,7 +4074,11 @@
     window.loadMarketView = async function() {
       showLoading(true);
       try {
-        const { data: marketData, error } = await supabase.from('market_research').select('*').order('product_name');
+        const { data: marketData, error } = await supabase.from('market_research')
+          .select('*')
+          .order('product_name')
+          .order('study_date', { ascending: false });
+        
         if (error) throw error;
 
         const tbody = document.getElementById('market-tbody');
@@ -4111,7 +4117,7 @@
               <td style="text-align:right; font-weight:bold; color:#f59e0b; font-size:16px;">
                  <span class="market-editable" onclick="window.editMarketField('${master.id}', 'my_price_platform', '${master.my_price_platform || 0}')">${formatCurrency(master.my_price_platform || 0)}</span>
               </td>
-              <td colspan="4" style="background: rgba(0,0,0,0.1); border-left: 2px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:12px; font-style:italic; vertical-align:middle;">
+              <td colspan="5" style="background: rgba(0,0,0,0.1); border-left: 2px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:12px; font-style:italic; vertical-align:middle;">
                  <button class="btn" style="padding:4px 10px; font-size:11px; color:#a78bfa; background:rgba(139,92,246,0.1);" onclick="window.addMarketCompetitorToProduct('${master.product_name}', ${master.my_price}, ${master.my_price_platform || 0})">+ Comparar con otro Local</button>
               </td>
               <td style="text-align:center;">
@@ -4141,11 +4147,20 @@
                 <td style="border-left: 2px solid rgba(255,255,255,0.1); font-weight:bold; color:#a78bfa;">
                    <span class="market-editable" onclick="window.editMarketField('${c.id}', 'competitor_name', '${c.competitor_name}')">${c.competitor_name}</span>
                 </td>
+                <td style="color:white; font-weight:500;">
+                   <span class="market-editable" onclick="window.editMarketField('${c.id}', 'competitor_product_name', '${c.competitor_product_name || ''}')">${c.competitor_product_name || '---'}</span>
+                </td>
                 <td style="text-align:right; font-weight:bold; color:white;">
-                   <span class="market-editable" onclick="window.editMarketField('${c.id}', 'price_store', '${c.price_store}')">${formatCurrency(c.price_store)}</span>
+                   <div style="display:flex; align-items:center; justify-content:flex-end; gap:5px;">
+                      <span class="market-editable" onclick="window.editMarketField('${c.id}', 'price_store', '${c.price_store}')">${formatCurrency(c.price_store)}</span>
+                      <button onclick="window.showPriceHistory('${c.product_name}', '${c.competitor_name}')" style="background:none; border:none; cursor:pointer; font-size:12px; opacity:0.6;" title="Ver Historial">📈</button>
+                   </div>
                 </td>
                 <td style="text-align:right; font-weight:bold; color:var(--text-muted);">
                    <span class="market-editable" onclick="window.editMarketField('${c.id}', 'price_platform', '${c.price_platform}')">${formatCurrency(c.price_platform)}</span>
+                </td>
+                <td style="text-align:center; font-size:11px; color:var(--text-muted);">
+                   <span class="market-editable" onclick="window.editMarketField('${c.id}', 'study_date', '${c.study_date}')">${c.study_date ? c.study_date.split('-').reverse().join('/') : '---'}</span>
                 </td>
                 <td style="text-align:center; padding: 4px 0;">
                    <div style="margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
@@ -4189,12 +4204,16 @@
       const myApp = await customPrompt("TU Precio App ($):", "Carga Estudio", "number");
       if (myApp === null) return;
       
-      const cName = await customPrompt("Nombre de la COMPETENCIA / LOCAL (ej: Burger King):", "Primer Competidor");
+      const cName = await customPrompt("Nombre de la COMPETENCIA / LOCAL (ej: Borzi):", "Primer Competidor");
       if (!cName) return;
+      const cProdName = await customPrompt(`Nombre de la burger de ${cName} (ej: La Tita):`, "Primer Competidor");
+      if (!cProdName) return;
       const cLocal = await customPrompt(`Precio Salón de ${cName}:`, "Primer Competidor", "number");
       if (cLocal === null) return;
       const cApp = await customPrompt(`Precio App de ${cName}:`, "Primer Competidor", "number");
       if (cApp === null) return;
+      let sDate = await customPrompt("Fecha del estudio (AAAA-MM-DD):", "Primer Competidor", "date");
+      if (!sDate) sDate = new Date().toISOString().split('T')[0];
 
       showLoading(true);
       const { error } = await supabase.from('market_research').insert({
@@ -4202,8 +4221,10 @@
         my_price: parseFloat(myLocal) || 0,
         my_price_platform: parseFloat(myApp) || 0,
         competitor_name: cName,
+        competitor_product_name: cProdName,
         price_store: parseFloat(cLocal) || 0,
-        price_platform: parseFloat(cApp) || 0
+        price_platform: parseFloat(cApp) || 0,
+        study_date: sDate
       });
       if (error) await customAlert("Error: " + error.message);
       else await window.loadMarketView();
@@ -4213,10 +4234,14 @@
     window.addMarketCompetitorToProduct = async function(pName, myPrice, myApp) {
       const cName = await customPrompt(`Nombre del Competidor para "${pName}":`, "Añadir Competencia");
       if (!cName) return;
+      const cProdName = await customPrompt(`Nombre de la burger de ${cName}:`, "Añadir Competencia");
+      if (!cProdName) return;
       const cLocal = await customPrompt(`Precio Salón de ${cName}:`, "Añadir Competencia", "number");
       if (cLocal === null) return;
       const cApp = await customPrompt(`Precio App de ${cName}:`, "Añadir Competencia", "number");
       if (cApp === null) return;
+      let sDate = await customPrompt("Fecha del estudio (AAAA-MM-DD):", "Añadir Competencia", "date");
+      if (!sDate) sDate = new Date().toISOString().split('T')[0];
 
       showLoading(true);
       const { error } = await supabase.from('market_research').insert({
@@ -4224,8 +4249,10 @@
         my_price: myPrice,
         my_price_platform: myApp,
         competitor_name: cName,
+        competitor_product_name: cProdName,
         price_store: parseFloat(cLocal) || 0,
-        price_platform: parseFloat(cApp) || 0
+        price_platform: parseFloat(cApp) || 0,
+        study_date: sDate
       });
       if (error) await customAlert("Error: " + error.message);
       else await window.loadMarketView();
@@ -4234,7 +4261,8 @@
 
     window.editMarketField = async function(id, field, current) {
       const isNum = ['my_price', 'my_price_platform', 'price_store', 'price_platform'].includes(field);
-      const newVal = await customPrompt(`Editar ${field}:`, "Estudio Mercado", isNum ? "number" : "text");
+      const isDate = field === 'study_date';
+      const newVal = await customPrompt(`Editar ${field}:`, "Estudio Mercado", isDate ? "date" : (isNum ? "number" : "text"));
       if (newVal === null || newVal === current) return;
 
       showLoading(true);
@@ -4269,6 +4297,43 @@
        await supabase.from('market_research').delete().eq('id', id);
        await window.loadMarketView();
        showLoading(false);
+    };
+
+    window.showPriceHistory = async function(pName, cName) {
+      showLoading(true);
+      const { data, error } = await supabase.from('market_research')
+        .select('*')
+        .eq('product_name', pName)
+        .eq('competitor_name', cName)
+        .order('study_date', { ascending: false });
+      
+      showLoading(false);
+      if (error || !data) return;
+
+      let historyHtml = `
+        <div style="max-height:400px; overflow-y:auto;">
+          <table class="data-table" style="font-size:13px;">
+            <thead>
+              <tr style="background:rgba(255,255,255,0.05);">
+                <th>Fecha</th>
+                <th style="text-align:right;">Precio Salón</th>
+                <th style="text-align:right;">Precio App</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(r => `
+                <tr>
+                  <td>${r.study_date ? r.study_date.split('-').reverse().join('/') : '---'}</td>
+                  <td style="text-align:right; font-weight:bold; color:#10b981;">${formatCurrency(r.price_store)}</td>
+                  <td style="text-align:right; font-weight:bold; color:#f59e0b;">${formatCurrency(r.price_platform)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      await customAlert(historyHtml, `Historial: ${pName} en ${cName}`);
     };
 
     async function initApp() {

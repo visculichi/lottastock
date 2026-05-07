@@ -7,9 +7,11 @@ CREATE TABLE market_research (
   product_name text NOT NULL, -- Nombre de MI producto (hamburguesa)
   my_price numeric DEFAULT 0,  -- MI precio Salón
   my_price_platform numeric DEFAULT 0, -- MI precio App
-  competitor_name text NOT NULL, -- Nombre de la competencia
+  competitor_name text NOT NULL, -- Nombre de la competencia (Local)
+  competitor_product_name text, -- Nombre de la burger de la competencia
   price_store numeric DEFAULT 0, -- Precio Salón competencia
   price_platform numeric DEFAULT 0, -- Precio App competencia
+  study_date date DEFAULT CURRENT_DATE, -- Fecha del relevamiento
   created_at timestamp with time zone DEFAULT now()
 );
 
