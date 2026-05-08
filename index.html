@@ -110,6 +110,13 @@
             <h3>Ganancia / Margen Base</h3>
             <p class="stat-value" id="dash-margin">$0</p>
           </div>
+
+          <div class="glass-panel" style="grid-column: span 3;">
+            <h3 style="margin-bottom:15px; color:var(--primary-color);">📊 Ventas por Canal (Salón vs Delivery)</h3>
+            <div id="dash-channel-list" style="display:flex; flex-wrap:wrap; gap:20px; justify-content: space-around; padding: 10px 0;">
+              <p style="color:var(--text-muted);">Procesando canales de venta...</p>
+            </div>
+          </div>
           
           <div class="glass-panel" style="grid-column: span 3;">
             <h3 style="margin-bottom:15px; color:var(--primary-color);">🏆 Top 10 Productos Más Vendidos</h3>
@@ -247,6 +254,22 @@
           <div class="glass-panel" style="flex: 1; min-width: 250px; align-self: flex-start;">
             <h3 style="color:var(--primary-color);">Ticket Actual</h3>
             
+            <label style="margin-top:15px; color:var(--primary-color); font-weight:bold;">Canal de Venta</label>
+            <div id="order-type-selector" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-top:5px; margin-bottom: 20px;">
+              <button type="button" class="btn order-type-btn active" onclick="window.setOrderType('Salón')" id="btn-type-salon">
+                🏠 Salón
+              </button>
+              <button type="button" class="btn order-type-btn" onclick="window.setOrderType('Resto Simple')" id="btn-type-restosimple">
+                <img src="Resto Simple.png" style="height:18px; vertical-align:middle; margin-right:5px;"> Resto Simple
+              </button>
+              <button type="button" class="btn order-type-btn" onclick="window.setOrderType('Rappi')" id="btn-type-rappi">
+                <img src="RAPPI.webp" style="height:18px; vertical-align:middle; margin-right:5px;"> Rappi
+              </button>
+              <button type="button" class="btn order-type-btn" onclick="window.setOrderType('Pedidos Ya')" id="btn-type-pedidosya">
+                <img src="Pedidos YA.png" style="height:18px; vertical-align:middle; margin-right:5px;"> Pedidos Ya
+              </button>
+            </div>
+
             <label style="margin-top:15px;">Número de Ticket</label>
             <input type="text" id="pos-ticket-number" placeholder="Ej: T-001024">
             
@@ -292,6 +315,7 @@
                 <tr>
                   <th>📅 Fecha/Hora</th>
                   <th>N° Ticket</th>
+                  <th>🚀 Canal</th>
                   <th>📦 Detalle de Productos</th>
                   <th style="text-align:right;">Monto Total ($)</th>
                   <th style="text-align:center;">Acción Administrativa</th>
@@ -811,9 +835,21 @@
              </button>
              <button class="btn btn-secondary" id="btn-open-z-bulk" style="height:42px; border-color:#8b5cf6; color:#8b5cf6; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; white-space:nowrap;">
                 <span>📁</span> Carga Masiva
-             </button>
-          </div>
+              </button>
+           </div>
         </header>
+
+        <!-- Quick Filters for Z-Report -->
+        <div style="display:flex; gap:10px; margin-top:15px; margin-bottom:20px; flex-wrap:wrap; align-items: center;">
+           <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px; border-radius:20px;" onclick="window.setZReportRange(0)">📅 Hoy</button>
+           <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px; border-radius:20px;" onclick="window.setZReportRange(1)">⌛ Ayer</button>
+           <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px; border-radius:20px;" onclick="window.setZReportRange(15)">📆 Últimos 15 Días</button>
+           <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px; border-radius:20px;" onclick="window.setZReportRange(-1)">🗓️ Este Mes</button>
+           <button class="btn btn-secondary" style="font-size:12px; padding:6px 12px; border-radius:20px;" onclick="window.setZReportRange(-2)">🗓️ Mes Pasado</button>
+           <button class="btn btn-secondary" id="btn-export-z-pdf" style="margin-left:auto; font-size:12px; padding:6px 15px; background:rgba(239, 68, 68, 0.1); border-color:#ef4444; color:#ef4444; display:flex; align-items:center; gap:8px; font-weight:bold; border-radius:8px;">
+              <span>📄</span> EXPORTAR REPORTE PDF
+           </button>
+        </div>
 
         <div class="cards-grid">
            <!-- Manual Entry Panel -->
@@ -822,7 +858,8 @@
               <p id="z-manual-desc" style="font-size:12px; color:var(--text-muted); margin-bottom:15px;">Ingresá el cierre físico de este turno.</p>
               
               <div style="font-size:12px; margin-bottom:5px;" id="z-actual-label">Total Turno ($)</div>
-              <input type="number" id="z-actual-sales" placeholder="Ej: 80000" style="font-size:32px; font-weight:bold; height:60px; text-align:center; color:white; border-color:var(--primary-color);">
+              <input type="number" id="z-actual-sales" placeholder="Ej: 80000" style="font-size:32px; font-weight:bold; height:60px; text-align:center; color:white; border-color:var(--primary-color);" oninput="window.updateZManualDisplay(this.value)">
+              <div id="z-manual-display" style="text-align:center; font-size:14px; color:var(--primary-color); font-weight:bold; margin-top:5px;">$ 0</div>
               
               <button class="btn btn-primary w-full" id="btn-save-z-report" style="margin-top:15px; height:50px; font-size:16px;">💾 GUARDAR CIERRE Z</button>
               <div id="z-range-info" class="hidden" style="margin-top:15px; font-size:11px; color:#10b981; text-align:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
@@ -863,14 +900,27 @@
                        <p style="font-size:11px; color:#10b981; margin-bottom:5px;">💎 Margen Ganancia</p>
                        <h3 id="z-system-margin" style="font-size:24px; color:#10b981;">0%</h3>
                     </div>
+                    <div style="background:rgba(139,92,246,0.1); padding:15px; border-radius:12px; border:1px solid rgba(139,92,246,0.2); text-align:center; grid-column: span 2;">
+                       <p style="font-size:11px; color:#a78bfa; margin-bottom:5px;">🎟️ Ticket Promedio</p>
+                       <h3 id="z-avg-ticket" style="font-size:24px; color:#a78bfa;">$0</h3>
+                    </div>
                  </div>
 
-                 <!-- Doughnut Chart Container -->
-                 <div style="height:180px; position:relative;">
-                    <canvas id="zAnalysisChart"></canvas>
-                    <button id="btn-show-cost-debug" class="btn btn-secondary" style="position:absolute; bottom:-10px; right:0; font-size:10px; padding:4px 8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3);">🔍 Ver Detalle de Costos</button>
-                 </div>
-              </div>
+                  <!-- Doughnut Chart Container -->
+                  <div style="height:220px; position:relative; background:rgba(255,255,255,0.02); border-radius:16px; padding:15px;">
+                     <canvas id="zAnalysisChart"></canvas>
+                     <button id="btn-show-cost-debug" class="btn btn-secondary" style="position:absolute; bottom:5px; right:5px; font-size:9px; padding:2px 6px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.3);">🔍 Detalle Costos</button>
+                  </div>
+               </div>
+
+               <!-- Channel Breakdown -->
+               <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:15px;">
+                  <h4 style="font-size:13px; color:var(--primary-color); margin-bottom:12px; font-family:var(--font-logo); font-weight:normal;">📊 INCIDENCIA POR PLATAFORMA (VENTA BRUTA)</h4>
+                  <div id="z-channel-breakdown" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+                     <!-- Dynamically populated -->
+                     <p style="color:var(--text-muted); font-size:11px; grid-column:span 4;">Sin datos de canales.</p>
+                  </div>
+               </div>
 
               <!-- Compact Cost Debug Panel (Initially Hidden) -->
               <div id="cost-debug-panel" class="glass-panel hidden" style="margin-top:20px; border:1px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.02);">
@@ -1340,6 +1390,20 @@
     const modalBtnCancel = document.getElementById('modal-btn-cancel');
     const modalBtnOk = document.getElementById('modal-btn-ok');
 
+    window.setOrderType = (type) => {
+      selectedOrderType = type;
+      // Update UI
+      document.querySelectorAll('.order-type-btn').forEach(btn => btn.classList.remove('active'));
+      const idMap = {
+        'Salón': 'btn-type-salon',
+        'Resto Simple': 'btn-type-restosimple',
+        'Rappi': 'btn-type-rappi',
+        'Pedidos Ya': 'btn-type-pedidosya'
+      };
+      const activeBtn = document.getElementById(idMap[type]);
+      if (activeBtn) activeBtn.classList.add('active');
+    };
+
     window.customAlert = function(msg, title = "Aviso") {
       return new Promise(resolve => {
         modalTitle.innerText = title;
@@ -1469,6 +1533,7 @@
     let currentRecipeItems = [];
     let defaultDepositId = null;
     let allRecipesGlobal = []; // Store recipes to avoid refetching for local calculations
+    let selectedOrderType = 'Salón'; // Default order type
 
     let latestInventoryData = [];
     let thresholdMapGlobal = {};
@@ -1512,13 +1577,13 @@
         const validSaleIds = Array.from(finalIds);
 
         if (validSaleIds.length === 0) {
-          return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [] };
+          return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [], salesByChannel: {} };
         }
 
         return calculateDashboardVariablesInternal(validSaleIds);
       } catch (err) {
         console.error("Dashboard variables error:", err);
-        return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [] };
+        return { totalSales: 0, cmvTotal: 0, invTotal: 0, margin: 0, ranking: [], lowStockAlerts: [], salesByChannel: {} };
       }
     }
 
@@ -1530,7 +1595,7 @@
       for (let i = 0; i < validSaleIds.length; i += CHUNK_SIZE) {
         const chunk = validSaleIds.slice(i, i + CHUNK_SIZE);
         const { data: chunkData, error: chunkErr } = await supabase.from('sale_items')
-          .select('quantity, product_id, sale_id, items(name, sale_price)')
+          .select('quantity, product_id, sale_id, items(name, sale_price), sales(order_type)')
           .in('sale_id', chunk);
         
         if (chunkErr) console.error("Chunk query error:", chunkErr);
@@ -1546,20 +1611,32 @@
         itemsPriceMap[i.id] = i.sale_price || 0;
       });
 
-      // 3. Process Sales & CMV
+      // 3. Process Sales & CMV & Channels
       let totalSales = 0;
       let cmvTotal = 0;
       const topProducts = {};
+      const salesByChannel = {
+        'Salón': 0,
+        'Resto Simple': 0,
+        'Rappi': 0,
+        'Pedidos Ya': 0
+      };
 
       if (salesData) {
         salesData.forEach(si => {
-          const qty = Number(si.quantity) || 0;
-          // Use item's current price as fallback if not in sale_items (though it should be)
-          const price = si.items?.sale_price || itemsPriceMap[si.product_id] || 0;
+          const qty = si.quantity || 0;
           const cost = itemsCostMap[si.product_id] || 0;
-          
-          totalSales += (qty * price);
+          const price = itemsPriceMap[si.product_id] || 0;
+          const revenue = (qty * price);
+          totalSales += revenue;
           cmvTotal += (qty * cost);
+
+          const oType = si.sales?.order_type || 'Salón';
+          if (salesByChannel[oType] !== undefined) {
+            salesByChannel[oType] += revenue;
+          } else {
+            salesByChannel[oType] = (salesByChannel[oType] || 0) + revenue;
+          }
 
           if(!topProducts[si.product_id]) topProducts[si.product_id] = { name: si.items?.name, qty: 0 };
           topProducts[si.product_id].qty += qty;
@@ -1604,7 +1681,7 @@
         }
       }
 
-      return { totalSales, cmvTotal, invTotal, margin: totalSales - cmvTotal, ranking, lowStockAlerts };
+      return { totalSales, cmvTotal, invTotal, margin: totalSales - cmvTotal, ranking, lowStockAlerts, salesByChannel };
     }
 
     async function getDeposits() {
@@ -1729,20 +1806,21 @@
     }
 
     async function getInventory() {
-      const { data, error } = await supabase.from('inventory').select('id, deposit_id, item_id, quantity, deposits(name), items(name, unit, hide_in_inventory)');
+      const { data, error } = await supabase.from('inventory').select('id, deposit_id, item_id, quantity, deposits(name), items(name, unit, category, hide_in_inventory)');
       if (error) return [];
       // Filter out items that are marked as hidden
       return data.filter(i => i.items && i.items.hide_in_inventory !== true);
     }
 
-    async function processSale(ticketNumber, items, depositId, saleDateStr) {
+    async function processSale(ticketNumber, items, depositId, saleDateStr, orderType) {
       try {
         const totalAmount = items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
         const insertPayload = { 
           ticket_number: ticketNumber, 
           total_amount: totalAmount,
           sale_date: saleDateStr || new Date().toISOString().split('T')[0],
-          shift: document.getElementById('pos-sale-shift').value || 'Día'
+          shift: document.getElementById('pos-sale-shift').value || 'Día',
+          order_type: orderType || 'Salón'
         };
         
         const { data: saleData, error: saleError } = await supabase.from('sales').insert(insertPayload).select().single()
@@ -2054,7 +2132,7 @@
       const { data: sales } = await query;
       
       if (!sales || sales.length === 0) {
-        historyTbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay ventas en estas fechas.</td></tr>';
+        historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay ventas en estas fechas.</td></tr>';
       } else {
         const isAdmin = localStorage.getItem('role') === 'admin';
         historyTbody.innerHTML = sales.map(s => {
@@ -2065,9 +2143,19 @@
           const detailStr = s.sale_items.map(si => `${si.quantity}x ${si.items?.name || '?'}`).join(', ');
           const delBtn = isAdmin ? `<button class="btn" style="padding:6px 12px; font-size:12px; color:red; border:1px solid rgba(239, 68, 68, 0.4);" onclick="window.deleteSaleTicket('${s.id}')">🗑️ Borrar</button>` : '';
           
+          const oType = s.order_type || 'Salón';
+          const typeIcons = {
+            'Salón': '🏠',
+            'Resto Simple': '<img src="Resto Simple.png" style="height:12px; margin-right:4px;">',
+            'Rappi': '<img src="RAPPI.webp" style="height:12px; margin-right:4px;">',
+            'Pedidos Ya': '<img src="Pedidos YA.png" style="height:12px; margin-right:4px;">'
+          };
+          const typeDisplay = `<span style="font-size:11px; color:var(--text-muted); display:flex; align-items:center;">${typeIcons[oType] || '📦'} ${oType}</span>`;
+
           return `<tr>
             <td style="font-size:12px;">${new Date(s.created_at).toLocaleString('es-AR')}</td>
             <td style="font-weight:bold;">${s.ticket_number}</td>
+            <td>${typeDisplay}</td>
             <td style="font-size:12px; color:var(--text-muted);">${detailStr}</td>
             <td style="text-align:right; font-weight:bold; color:var(--primary-color);">${formatCurrency(displayTotal)}</td>
             <td style="text-align:center;">${delBtn}</td>
@@ -2129,6 +2217,34 @@
       
       dashMargin.innerText = formatCurrency(metrics.margin);
       dashInvVal.innerText = formatCurrency(metrics.invTotal);
+
+      const channelEl = document.getElementById('dash-channel-list');
+      if (channelEl) {
+        const channels = metrics.salesByChannel || {};
+        const total = metrics.totalSales || 1;
+        const channelIcons = {
+          'Salón': '🏠',
+          'Resto Simple': '<img src="Resto Simple.png" style="height:14px; margin-right:4px;">',
+          'Rappi': '<img src="RAPPI.webp" style="height:14px; margin-right:4px;">',
+          'Pedidos Ya': '<img src="Pedidos YA.png" style="height:14px; margin-right:4px;">'
+        };
+
+        let channelHtml = '';
+        for (const [name, value] of Object.entries(channels)) {
+          if (value === 0 && name !== 'Salón') continue;
+          const perc = ((value / total) * 100).toFixed(1);
+          channelHtml += `
+            <div style="text-align:center; min-width:120px; padding:10px; background:rgba(255,255,255,0.03); border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:5px; display:flex; align-items:center; justify-content:center;">
+                ${channelIcons[name] || '📦'} ${name}
+              </div>
+              <div style="font-weight:bold; font-size:18px; color:var(--primary-color);">${perc}%</div>
+              <div style="font-size:11px; color:var(--text-muted);">${formatCurrency(value)}</div>
+            </div>
+          `;
+        }
+        channelEl.innerHTML = channelHtml || '<p style="color:var(--text-muted);">No hay datos de canales.</p>';
+      }
       
       const rankingEl = document.getElementById('dash-ranking-list');
       if(rankingEl) {
@@ -2181,7 +2297,23 @@
         allItemsGlobal = items;
         const movList = document.getElementById('mov-item-list');
         if (movList) {
-          movList.innerHTML = items.map(i => `<option value="${i.name} (${i.unit})"></option>`).join('');
+          // Group items by category for the movement selector
+          const groupedItems = {};
+          items.forEach(i => {
+            const cat = i.category || 'Sin Categoría';
+            if (!groupedItems[cat]) groupedItems[cat] = [];
+            groupedItems[cat].push(i);
+          });
+          
+          let optionsHtml = '';
+          Object.keys(groupedItems).sort().forEach(cat => {
+            optionsHtml += `<optgroup label="${cat.toUpperCase()}">`;
+            groupedItems[cat].forEach(i => {
+              optionsHtml += `<option value="${i.name} (${i.unit})">${i.name}</option>`;
+            });
+            optionsHtml += `</optgroup>`;
+          });
+          movList.innerHTML = optionsHtml;
         }
       }
 
@@ -2243,30 +2375,56 @@
     }
 
     function renderInventoryTable() {
+      const invTbody = document.getElementById('inventory-tbody');
       const searchTerm = document.getElementById('inventory-search')?.value.toLowerCase() || '';
-      const filtered = latestInventoryData.filter(i => (i.items?.name || '').toLowerCase().includes(searchTerm) || (i.deposits?.name || '').toLowerCase().includes(searchTerm));
+      
+      const filtered = latestInventoryData.filter(i => 
+        (i.items?.name || '').toLowerCase().includes(searchTerm) || 
+        (i.deposits?.name || '').toLowerCase().includes(searchTerm) ||
+        (i.items?.category || '').toLowerCase().includes(searchTerm)
+      );
       
       if (filtered.length === 0) {
         invTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">${latestInventoryData.length === 0 ? 'No hay stock registrado' : 'No se encontraron productos coincidentes'}</td></tr>`;
       } else {
-        const isAdmin = localStorage.getItem('role') === 'admin';
-        invTbody.innerHTML = filtered.map(i => {
-          const isLow = thresholdMapGlobal[i.item_id] && totalStockByItemGlobal[i.item_id] <= thresholdMapGlobal[i.item_id];
-          const actionBtns = isAdmin ? `
-              <div style="display:flex; justify-content:center; gap:5px;">
-                <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.editInventoryStock('${i.id}')" title="Editar Cantidad">✏️</button>
-                <button class="btn" style="padding:4px 8px; font-size:11px; color:red; border:1px solid rgba(239,68,68,0.3);" onclick="window.deleteInventoryStock('${i.id}')" title="Resetear a 0">🗑️</button>
-              </div>
-            ` : '-';
+        // Group filtered items by category
+        const grouped = {};
+        filtered.forEach(i => {
+          const cat = i.items?.category || 'General';
+          if (!grouped[cat]) grouped[cat] = [];
+          grouped[cat].push(i);
+        });
 
-          return `<tr class="${isLow ? 'row-low-stock' : ''}">
-            <td>${i.deposits?.name || '-'}</td>
-            <td>${i.items?.name || '-'} ${isLow ? '<span style="color:#ef4444; font-size:10px; font-weight:bold; margin-left:5px;">(Stock Bajo)</span>' : ''}</td>
-            <td style="font-weight:bold;">${i.quantity}</td>
-            <td>${i.items?.unit || '-'}</td>
-            <td style="text-align:center;">${actionBtns}</td>
-          </tr>`;
-        }).join('');
+        const isAdmin = localStorage.getItem('role') === 'admin';
+        let html = '';
+
+        Object.keys(grouped).sort().forEach(cat => {
+          // Category Header Row
+          html += `
+            <tr style="background:rgba(139, 92, 246, 0.05); border-left: 4px solid #8b5cf6;">
+              <td colspan="5" style="padding:10px 15px; font-weight:bold; color:#a78bfa; font-size:13px; letter-spacing:1px;">📁 ${cat.toUpperCase()}</td>
+            </tr>
+          `;
+
+          grouped[cat].forEach(i => {
+            const isLow = thresholdMapGlobal[i.item_id] && totalStockByItemGlobal[i.item_id] <= thresholdMapGlobal[i.item_id];
+            const actionBtns = isAdmin ? `
+                <div style="display:flex; justify-content:center; gap:5px;">
+                  <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="window.editInventoryStock('${i.id}')" title="Editar Cantidad">✏️</button>
+                  <button class="btn" style="padding:4px 8px; font-size:11px; color:red; border:1px solid rgba(239,68,68,0.3);" onclick="window.deleteInventoryStock('${i.id}')" title="Resetear a 0">🗑️</button>
+                </div>
+              ` : '-';
+
+            html += `<tr class="${isLow ? 'row-low-stock' : ''}" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+              <td style="padding-left:25px; color:var(--text-muted); font-size:13px;">${i.deposits?.name || '-'}</td>
+              <td style="font-weight:600;">${i.items?.name || '-'} ${isLow ? '<span style="color:#ef4444; font-size:10px; font-weight:bold; margin-left:5px;">(Stock Bajo)</span>' : ''}</td>
+              <td style="font-weight:bold; font-size:15px; color:var(--primary-color);">${i.quantity}</td>
+              <td style="color:var(--text-muted); font-size:13px;">${i.items?.unit || '-'}</td>
+              <td style="text-align:center;">${actionBtns}</td>
+            </tr>`;
+          });
+        });
+        invTbody.innerHTML = html;
       }
     }
 
@@ -3343,7 +3501,7 @@
       }
       
       const [salesRes, zRes] = await Promise.all([
-         supabase.from('sales').select('id, total_amount, shift, sale_date').gte('sale_date', fromDate).lte('sale_date', toDate),
+         supabase.from('sales').select('id, total_amount, shift, sale_date, order_type').gte('sale_date', fromDate).lte('sale_date', toDate),
          supabase.from('daily_z_report').select('manual_actual_sales, shift').gte('report_date', fromDate).lte('report_date', toDate)
       ]);
 
@@ -3354,16 +3512,23 @@
       const filteredManual = manualZ.filter(z => shift === 'Todo' ? true : z.shift === shift);
 
       if (isRange) {
-         manualInp.value = filteredManual.reduce((sum, z) => sum + (parseFloat(z.manual_actual_sales) || 0), 0);
+         const totalManual = filteredManual.reduce((sum, z) => sum + (parseFloat(z.manual_actual_sales) || 0), 0);
+         manualInp.value = totalManual;
+         window.updateZManualDisplay(totalManual);
       } else {
-         manualInp.value = filteredManual[0] ? filteredManual[0].manual_actual_sales : '';
+         const val = filteredManual[0] ? filteredManual[0].manual_actual_sales : '';
+         manualInp.value = val;
+         window.updateZManualDisplay(val);
       }
 
       if (filteredSales.length === 0) {
         document.getElementById('z-system-sales').innerText = "$0";
         document.getElementById('z-system-cmv').innerText = "$0";
+        document.getElementById('z-system-cmv-perc').innerText = "0%";
         document.getElementById('z-system-margin').innerText = "0%";
+        document.getElementById('z-avg-ticket').innerText = "$0";
         document.getElementById('z-status-badge').innerHTML = '<span style="color:#f59e0b;font-size:11px;">⚠️ No hay tickets.</span>';
+        document.getElementById('z-channel-breakdown').innerHTML = '<p style="color:var(--text-muted); font-size:11px; grid-column:span 4;">Sin datos de canales.</p>';
         currentDaySystemData = { sales: 0, cmv: 0, count: 0 };
         updateZDiff();
         showLoading(false);
@@ -3405,39 +3570,49 @@
       let totalSales = 0;
       let totalCmv = 0;
       const productsList = {};
+      const channelSales = { 'Salón': 0, 'Resto Simple': 0, 'Rappi': 0, 'Pedidos Ya': 0 };
       
       filteredSales.forEach(s => {
         let val = parseFloat(s.total_amount) || 0;
-        const itemsInThisSale = saleItemsMap.get(s.id) || [];
-        if (val <= 0) itemsInThisSale.forEach(si => val += (si.quantity * (itemsPriceMap[si.product_id] || 0)));
-        totalSales += val;
+        const items = saleItemsMap.get(s.id) || [];
+        
+        // Restore logic: if total_amount is 0 or missing, calculate from items
+        if (val <= 0) {
+           items.forEach(si => { val += (si.quantity * (itemsPriceMap[si.product_id] || 0)); });
+        }
 
-        itemsInThisSale.forEach(si => {
-           const pName = itemsNameMap[si.product_id] || 'Desconocido';
-           if (!productsList[pName]) productsList[pName] = { qty: 0, uCost: 0, total: 0 };
+        totalSales += val;
+        
+        const oType = s.order_type || 'Salón';
+        if (channelSales[oType] !== undefined) {
+          channelSales[oType] += val;
+        } else {
+          channelSales[oType] = (channelSales[oType] || 0) + val;
+        }
+
+        items.forEach(si => {
            const cost = itemsCostMap[si.product_id] || 0;
-           productsList[pName].qty += si.quantity;
-           productsList[pName].uCost = cost;
-           productsList[pName].total += (si.quantity * cost);
            totalCmv += (si.quantity * cost);
+           if (!productsList[si.product_id]) productsList[si.product_id] = { name: itemsNameMap[si.product_id] || '?', qty: 0, cost: 0 };
+           productsList[si.product_id].qty += si.quantity;
+           productsList[si.product_id].cost += (si.quantity * cost);
         });
       });
 
       let debugHtml = '';
-      Object.keys(productsList).sort((a,b) => productsList[b].total - productsList[a].total).forEach(pName => {
-          const p = productsList[pName];
+      Object.keys(productsList).sort((a,b) => productsList[b].cost - productsList[a].cost).forEach(pid => {
+          const p = productsList[pid];
           debugHtml += `
              <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                <td style="padding:4px;">${pName}</td>
+                <td style="padding:4px;">${p.name}</td>
                 <td style="text-align:center;">${p.qty}</td>
-                <td style="text-align:right;">${formatCurrency(p.uCost)}</td>
-                <td style="text-align:right; font-weight:bold; color:#ef4444;">${formatCurrency(p.total)}</td>
+                <td style="text-align:right;">${formatCurrency(p.cost / p.qty)}</td>
+                <td style="text-align:right; font-weight:bold; color:#ef4444;">${formatCurrency(p.cost)}</td>
              </tr>
           `;
       });
       if(costDebugTbody) costDebugTbody.innerHTML = debugHtml;
 
-      currentDaySystemData = { sales: totalSales, cmv: totalCmv, count: filteredSales.length };
       document.getElementById('z-system-sales').innerText = formatCurrency(totalSales);
       document.getElementById('z-system-cmv').innerText = formatCurrency(totalCmv);
       
@@ -3446,16 +3621,45 @@
       document.getElementById('z-system-cmv-perc').innerText = cmvPct.toFixed(1) + '%';
       document.getElementById('z-system-margin').innerText = marginPct.toFixed(1) + '%';
 
+      const avgTicket = totalSales / filteredSales.length;
+      document.getElementById('z-avg-ticket').innerText = formatCurrency(avgTicket);
+
+      // Render Channel Breakdown
+      const channelContainer = document.getElementById('z-channel-breakdown');
+      const channelIcons = {
+        'Salón': '🏠',
+        'Resto Simple': '<img src="Resto Simple.png" style="height:12px; margin-right:4px;">',
+        'Rappi': '<img src="RAPPI.webp" style="height:12px; margin-right:4px;">',
+        'Pedidos Ya': '<img src="Pedidos YA.png" style="height:12px; margin-right:4px;">'
+      };
+      
+      let deliveryTotal = 0;
+      channelContainer.innerHTML = Object.entries(channelSales).map(([name, val]) => {
+        if (name !== 'Salón') deliveryTotal += val;
+        const perc = totalSales > 0 ? ((val / totalSales) * 100).toFixed(1) : 0;
+        return `
+          <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:8px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+             <div style="font-size:10px; color:var(--text-muted); display:flex; align-items:center; justify-content:center; margin-bottom:2px;">
+                ${channelIcons[name] || '📦'} ${name}
+             </div>
+             <div style="font-weight:bold; color:var(--primary-color); font-size:14px;">${perc}%</div>
+             <div style="font-size:9px; opacity:0.6;">${formatCurrency(val)}</div>
+          </div>
+        `;
+      }).join('');
+
+      currentDaySystemData = { sales: totalSales, cmv: totalCmv, count: filteredSales.length };
+
       const zCtx = document.getElementById('zAnalysisChart').getContext('2d');
       if (zAnalysisChart) zAnalysisChart.destroy();
       if (totalSales > 0) {
         zAnalysisChart = new Chart(zCtx, {
           type: 'doughnut',
           data: {
-            labels: ['Costo Mercadería', 'Margen Bruto'],
+            labels: ['Costo (CMV)', 'Margen Bruto', 'Salón', 'Delivery'],
             datasets: [{
-              data: [totalCmv, Math.max(0, totalSales - totalCmv)],
-              backgroundColor: ['#ef4444', '#10b981'],
+              data: [totalCmv, Math.max(0, totalSales - totalCmv), channelSales['Salón'], deliveryTotal],
+              backgroundColor: ['#ef4444', '#10b981', '#3b82f6', '#f59e0b'],
               borderWidth: 0, hoverOffset: 10
             }]
           },
@@ -4754,11 +4958,12 @@
         btnProcessSale.disabled = true;
         const tNum = posTicketNum.value || `T-${Math.floor(Math.random()*10000)}`;
         const sDate = document.getElementById('pos-sale-date').value;
-        const res = await processSale(tNum, currentTicketItems, defaultDepositId, sDate);
+        const res = await processSale(tNum, currentTicketItems, defaultDepositId, sDate, selectedOrderType);
         if (res.success) {
           await customAlert("Venta registrada y stock descontado por receta!", "Éxito");
           currentTicketItems = [];
           posTicketNum.value = '';
+          window.setOrderType('Salón');
           renderTicket();
         } else {
           await customAlert("Error procesando venta: " + res.error?.message, "Error");
@@ -4768,20 +4973,20 @@
       });
 
       if (movItem) {
-         movItem.addEventListener('input', () => {
-           const searchText = movItem.value;
-           const matchedItem = allItemsGlobal.find(i => `${i.name} (${i.unit})` === searchText);
-           const decompContainer = document.getElementById('mov-decompose-container');
-           if (matchedItem && (matchedItem.type === 'assembled' || matchedItem.type === 'final_product')) {
-              decompContainer.classList.remove('hidden');
-           } else {
-              decompContainer.classList.add('hidden');
-              document.getElementById('mov-decompose').checked = false;
-           }
-         });
-       }
+        movItem.addEventListener('input', () => {
+          const searchText = movItem.value;
+          const matchedItem = allItemsGlobal.find(i => `${i.name} (${i.unit})` === searchText);
+          const decompContainer = document.getElementById('mov-decompose-container');
+          if (matchedItem && (matchedItem.type === 'assembled' || matchedItem.type === 'final_product')) {
+            decompContainer.classList.remove('hidden');
+          } else {
+            decompContainer.classList.add('hidden');
+            document.getElementById('mov-decompose').checked = false;
+          }
+        });
+      }
 
-       if (btnSaveMov) {
+      if (btnSaveMov) {
         btnSaveMov.addEventListener('click', async () => {
           const t = document.getElementById('mov-type').value;
           const q = parseFloat(document.getElementById('mov-qty').value);
@@ -4927,8 +5132,7 @@
             prodModal.classList.add('hidden'); // Close modal BEFORE the alert
             await customAlert("¡Producción registrada! El stock de insumos bajó y el de manufacturados subió correctamente.", "Éxito");
             await loadInventoryView();
-          } catch (e) {
-            console.error(e);
+               console.error(e);
             await customAlert("Error en la cadena de producción.");
           } finally {
             btnConfirmProd.disabled = false;
@@ -5509,39 +5713,134 @@
         from.valueAsDate = dFrom;
         to.valueAsDate = dTo;
         loadProductSalesView();
-      };
+       };
 
-      window.setHistoryRange = (days) => {
-        const from = document.getElementById('history-date-from');
-        const to = document.getElementById('history-date-to');
-        const now = new Date();
-        const dTo = new Date();
-        const dFrom = new Date();
-        
-        if (days === 0) {
-          // Today
-        } else if (days === -1) {
-          // Current Month
-          dFrom.setDate(1);
-        } else if (days === -2) {
-          // Last Month
-          dFrom.setMonth(now.getMonth() - 1);
-          dFrom.setDate(1);
-          dTo.setDate(0);
-        } else {
-          dFrom.setDate(now.getDate() - (days - 1));
+       window.setHistoryRange = (days) => {
+         const from = document.getElementById('history-date-from');
+         const to = document.getElementById('history-date-to');
+         const now = new Date();
+         const dTo = new Date();
+         const dFrom = new Date();
+         
+         if (days === 0) {
+           // Today
+         } else if (days === -1) {
+           // Current Month
+           dFrom.setDate(1);
+         } else if (days === -2) {
+           // Last Month
+           dFrom.setMonth(now.getMonth() - 1);
+           dFrom.setDate(1);
+           dTo.setDate(0);
+         } else {
+           dFrom.setDate(now.getDate() - (days - 1));
+         }
+         
+         from.valueAsDate = dFrom;
+         to.valueAsDate = dTo;
+         loadHistoryView();
+       };
+
+       // --- Z Report Helpers ---
+       window.setZReportRange = (days) => {
+         const from = document.getElementById('z-from-date');
+         const to = document.getElementById('z-to-date');
+         const now = new Date();
+         const dTo = new Date();
+         const dFrom = new Date();
+
+         if (days === 0) {
+           // Today
+         } else if (days === 1) {
+           dFrom.setDate(now.getDate() - 1);
+           dTo.setDate(now.getDate() - 1);
+         } else if (days === -1) {
+           dFrom.setDate(1);
+         } else if (days === -2) {
+           dFrom.setMonth(now.getMonth() - 1);
+           dFrom.setDate(1);
+           dTo.setDate(0); 
+         } else {
+           dFrom.setDate(now.getDate() - (days - 1));
+         }
+
+         from.value = dFrom.toISOString().split('T')[0];
+         to.value = dTo.toISOString().split('T')[0];
+         analyzeSelectedPeriod();
+       };
+
+       const btnExportZPdf = document.getElementById('btn-export-z-pdf');
+       if (btnExportZPdf) btnExportZPdf.onclick = exportZReportPDF;
+
+       async function exportZReportPDF() {
+         const { jsPDF } = window.jspdf;
+         const doc = jsPDF();
+         const fromDate = document.getElementById('z-from-date').value;
+         const toDate = document.getElementById('z-to-date').value;
+         const shift = document.getElementById('z-report-shift').value;
+         
+         doc.setFontSize(20);
+         doc.setTextColor(187, 147, 92);
+         doc.text("Reporte Z y Control de Gestión", 105, 20, { align: 'center' });
+         
+         doc.setFontSize(10);
+         doc.setTextColor(100);
+         doc.text(`Periodo: ${fromDate} al ${toDate} | Turno: ${shift}`, 105, 30, { align: 'center' });
+         
+         const sales = document.getElementById('z-system-sales').innerText;
+         const cmv = document.getElementById('z-system-cmv').innerText;
+         const cmvPerc = document.getElementById('z-system-cmv-perc').innerText;
+         const margin = document.getElementById('z-system-margin').innerText;
+         const avgTicket = document.getElementById('z-avg-ticket').innerText;
+         const manualVal = document.getElementById('z-actual-sales').value || "0";
+         
+         doc.autoTable({
+           startY: 40,
+           head: [['Métrica', 'Valor']],
+           body: [
+             ['Venta Sistema (Tickets)', sales],
+             ['Cierre Caja Manual', formatCurrency(parseFloat(manualVal) || 0)],
+             ['Costo Mercadería (CMV)', cmv],
+             ['CMV %', cmvPerc],
+             ['Margen Bruto %', margin],
+             ['Ticket Promedio', avgTicket]
+           ],
+           theme: 'grid',
+           headStyles: { fillColor: [187, 147, 92] }
+         });
+
+         // Channel Breakdown Table
+         const channelDivs = document.querySelectorAll('#z-channel-breakdown div');
+         const channels = Array.from(channelDivs).map(div => {
+           const lines = div.innerText.split('\n').map(l => l.trim()).filter(l => l);
+           return [lines[0], lines[1], lines[2]];
+         });
+
+         if (channels.length > 0) {
+           doc.text("Desglose por Canal de Venta", 14, doc.lastAutoTable.finalY + 10);
+           doc.autoTable({
+             startY: doc.lastAutoTable.finalY + 15,
+             head: [['Canal', '% Incidencia', 'Monto']],
+             body: channels,
+             theme: 'striped',
+             headStyles: { fillColor: [59, 130, 246] }
+           });
+         }
+
+         doc.save(`Reporte_Z_${fromDate}_${toDate}.pdf`);
         }
-        
-        from.valueAsDate = dFrom;
-        to.valueAsDate = dTo;
-        loadHistoryView();
-      };
 
-      try {
-        await loadDashboardView();
-      } catch (e) {
-        console.error("Initial dashboard load failed:", e);
-      }
+        window.updateZManualDisplay = (val) => {
+          const display = document.getElementById('z-manual-display');
+          if (display) display.innerText = formatCurrency(parseFloat(val) || 0);
+        };
+
+        try {
+         await loadDashboardView();
+       } catch (e) {
+         console.error("Initial dashboard load failed:", e);
+       }
+
       showLoading(false);
     }
 
