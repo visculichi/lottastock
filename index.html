@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -3654,6 +3654,85 @@
 
       currentDaySystemData = { sales: totalSales, cmv: totalCmv, count: filteredSales.length };
 
+      // ── Render live insights using real ticket data ─────────────────────────
+      const cmvEffLive = totalSales > 0 ? (totalCmv / totalSales * 100) : 0;
+
+      // Build the equivalent date range in the PREVIOUS month (same day numbers)
+      // e.g. if period is May 1-9, compare against Apr 1-9 (not all of April)
+      const fromD   = new Date(fromDate + 'T00:00:00');
+      const toD     = new Date(toDate   + 'T00:00:00');
+      const dayFrom = fromD.getDate();  // e.g. 1
+      const dayTo   = toD.getDate();    // e.g. 9
+
+      // Previous month (year-aware)
+      const prevMonthDate = new Date(fromD.getFullYear(), fromD.getMonth() - 1, 1);
+      const prevYear      = prevMonthDate.getFullYear();
+      const prevMonth     = prevMonthDate.getMonth() + 1;  // 1-based
+      const prevMonthStr  = `${prevYear}-${String(prevMonth).padStart(2,'0')}`;
+      const daysInPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
+
+      // Clamp dayTo to not exceed days in prev month
+      const prevDayTo = Math.min(dayTo, daysInPrevMonth);
+      const prevFrom  = `${prevMonthStr}-${String(dayFrom).padStart(2,'0')}`;
+      const prevTo    = `${prevMonthStr}-${String(prevDayTo).padStart(2,'0')}`;
+
+      // Fetch equivalent period sales from daily_z_report (faster, already stored)
+      const { data: priorHist } = await supabase
+        .from('daily_z_report')
+        .select('report_date, manual_actual_sales')
+        .gte('report_date', prevFrom)
+        .lte('report_date', prevTo);
+
+      const prevMonthSales = (priorHist || [])
+        .reduce((s, h) => s + (parseFloat(h.manual_actual_sales) || 0), 0);
+
+      const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const prevLabel  = `${monthNames[prevMonth - 1]} ${dayFrom}-${prevDayTo}`;
+      const growth     = prevMonthSales > 0 ? ((totalSales / prevMonthSales) - 1) * 100 : null;
+
+      const momInsEl = document.getElementById('mom-insights');
+      if (momInsEl) {
+        momInsEl.innerText = growth !== null
+          ? `Venta vs ${prevLabel}: ${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`
+          : `Facturacion del periodo: ${formatCurrency(totalSales)}`;
+      }
+
+      const tipsEl = document.getElementById('z-ai-tips');
+      if (tipsEl) {
+        let growthMsg = '';
+        if (growth === null) {
+          growthMsg = 'No hay registros Z del periodo equivalente del mes anterior para comparar.';
+        } else if (growth > 5) {
+          growthMsg = `Las ventas crecieron un ${growth.toFixed(1)}% vs ${prevLabel} del mes pasado. Segui asi!`;
+        } else if (growth >= 0) {
+          growthMsg = `Las ventas se mantienen estables (${growth.toFixed(1)}% vs ${prevLabel} del mes pasado).`;
+        } else {
+          growthMsg = `Las ventas bajaron un ${Math.abs(growth).toFixed(1)}% vs ${prevLabel} del mes pasado. Revisa feriados o cambios de precio.`;
+        }
+
+        let cmvMsg = '';
+        if (cmvEffLive === 0) {
+          cmvMsg = 'Sin datos de CMV para este periodo.';
+        } else if (cmvEffLive > 40) {
+          cmvMsg = `Tu CMV es del ${cmvEffLive.toFixed(1)}%. Esta alto — revisa recetas o subi precios.`;
+        } else if (cmvEffLive > 35) {
+          cmvMsg = `Tu CMV es del ${cmvEffLive.toFixed(1)}%. Atencion, esta en el limite (ideal < 35%).`;
+        } else {
+          cmvMsg = `Tu CMV es del ${cmvEffLive.toFixed(1)}%. Tu margen de mercaderia es excelente.`;
+        }
+
+        tipsEl.innerHTML = `
+          <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+            <strong style="color:#10b981;">📈 Diagnostico de Venta:</strong><br>
+            ${growthMsg}
+          </div>
+          <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
+            <strong style="color:#ef4444;">🛡️ Eficiencia Insumos:</strong><br>
+            ${cmvMsg}
+          </div>
+        `;
+      }
+
       const zCtx = document.getElementById('zAnalysisChart').getContext('2d');
       if (zAnalysisChart) zAnalysisChart.destroy();
       if (totalSales > 0) {
@@ -3870,28 +3949,10 @@
         }
       }
 
-      // Generate Insights
-      if (labels.length >= 2) {
-        const curr = labels[labels.length - 1];
-        const prev = labels[labels.length - 2];
-        const growth = ((monthsMap[curr].sales / (monthsMap[prev].sales || 1)) - 1) * 100;
-        const cmvEff = (monthsMap[curr].cmv / (monthsMap[curr].sales || 1) * 100);
-        
-        document.getElementById('mom-insights').innerText = `Venta vs Mes Pasado: ${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
-        
-        let tipsHtml = `
-          <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-            <strong style="color:#10b981;">📈 Diagnóstico de Venta:</strong><br>
-            ${growth > 0 ? 'Tus ventas están creciendo. Mantené la calidad para fidelizar.' : 'Las ventas bajaron respecto al mes pasado. ¿Hubo feriados o cambios de precio?'}
-          </div>
-          <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px;">
-            <strong style="color:#ef4444;">🛡️ Eficiencia Insumos:</strong><br>
-            Tu CMV promedio es del ${cmvEff.toFixed(1)}%. ${cmvEff > 35 ? 'Ojo, está alto. Revisá recetas o subí precios.' : 'Tu margen de mercadería es excelente.'}
-          </div>
-        `;
-        document.getElementById('z-ai-tips').innerHTML = tipsHtml;
-      } else {
-         document.getElementById('mom-insights').innerText = "Ventas de: " + labels[0];
+      // Insights are now rendered in analyzeSelectedPeriod() with live data
+      if (labels.length < 2 && labels.length === 1) {
+        const momInsEl = document.getElementById('mom-insights');
+        if (momInsEl && !momInsEl.innerText) momInsEl.innerText = 'Ventas de: ' + labels[0];
       }
     }
 
