@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -1548,6 +1548,10 @@
       return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
     }
 
+    function formatQty(value) {
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value) || 0);
+    }
+
     // --- API Logic ---
     async function calculateDashboardVariables(fromStr, toStr) {
       try {
@@ -2341,15 +2345,15 @@
             const d = new Date(m.created_at).toLocaleString('es-AR', {dateStyle: 'short', timeStyle: 'short'});
             let typeBadge = '';
             let valColor = 'white';
-            let formattedQty = m.quantity;
-            if (m.movement_type === 'in_purchase') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🟢 Ingreso Compra</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'adjustment_initial') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📈 Ajuste/Conteo Inicial</span>'; valColor = '#10b981'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'out_waste') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔴 Merma / Descarte</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
-            else if (m.movement_type === 'adjustment_final') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📉 Ajuste Stock Final</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
-            else if (m.movement_type === 'sale_deduction') { typeBadge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🍔 Consumo Venta (Ticket)</span>'; valColor = '#f59e0b'; formattedQty = '-' + m.quantity; }
-            else if (m.movement_type === 'system_rollback') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">⏪ Reversión Venta Admin</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'production_yield') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔨 Preparación Finalizada</span>'; valColor = '#8b5cf6'; formattedQty = '+' + m.quantity; }
-            else if (m.movement_type === 'production_input') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🥩 Consumo Elaboración</span>'; valColor = '#ef4444'; formattedQty = '-' + m.quantity; }
+            let formattedQty = formatQty(m.quantity);
+            if (m.movement_type === 'in_purchase') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🟢 Ingreso Compra</span>'; valColor = '#10b981'; formattedQty = '+' + formatQty(m.quantity); }
+            else if (m.movement_type === 'adjustment_initial') { typeBadge = '<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📈 Ajuste/Conteo Inicial</span>'; valColor = '#10b981'; formattedQty = '+' + formatQty(m.quantity); }
+            else if (m.movement_type === 'out_waste') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔴 Merma / Descarte</span>'; valColor = '#ef4444'; formattedQty = '-' + formatQty(m.quantity); }
+            else if (m.movement_type === 'adjustment_final') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">📉 Ajuste Stock Final</span>'; valColor = '#ef4444'; formattedQty = '-' + formatQty(m.quantity); }
+            else if (m.movement_type === 'sale_deduction') { typeBadge = '<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🍔 Consumo Venta (Ticket)</span>'; valColor = '#f59e0b'; formattedQty = '-' + formatQty(m.quantity); }
+            else if (m.movement_type === 'system_rollback') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">⏪ Reversión Venta Admin</span>'; valColor = '#8b5cf6'; formattedQty = '+' + formatQty(m.quantity); }
+            else if (m.movement_type === 'production_yield') { typeBadge = '<span style="color:#8b5cf6; background:rgba(139,92,246,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🔨 Preparación Finalizada</span>'; valColor = '#8b5cf6'; formattedQty = '+' + formatQty(m.quantity); }
+            else if (m.movement_type === 'production_input') { typeBadge = '<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">🥩 Consumo Elaboración</span>'; valColor = '#ef4444'; formattedQty = '-' + formatQty(m.quantity); }
             else typeBadge = `<span style="color:var(--text-muted); font-size:12px;">${m.movement_type}</span>`;
             
             const actionBtns = isAdmin ? `
@@ -2418,7 +2422,7 @@
             html += `<tr class="${isLow ? 'row-low-stock' : ''}" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
               <td style="padding-left:25px; color:var(--text-muted); font-size:13px;">${i.deposits?.name || '-'}</td>
               <td style="font-weight:600;">${i.items?.name || '-'} ${isLow ? '<span style="color:#ef4444; font-size:10px; font-weight:bold; margin-left:5px;">(Stock Bajo)</span>' : ''}</td>
-              <td style="font-weight:bold; font-size:15px; color:var(--primary-color);">${i.quantity}</td>
+              <td style="font-weight:bold; font-size:15px; color:var(--primary-color);">${formatQty(i.quantity)}</td>
               <td style="color:var(--text-muted); font-size:13px;">${i.items?.unit || '-'}</td>
               <td style="text-align:center;">${actionBtns}</td>
             </tr>`;
@@ -5774,57 +5778,257 @@
 
        async function exportZReportPDF() {
          const { jsPDF } = window.jspdf;
-         const doc = jsPDF();
+
+         // ── 0. Gather UI values ───────────────────────────────────────────────
          const fromDate = document.getElementById('z-from-date').value;
-         const toDate = document.getElementById('z-to-date').value;
-         const shift = document.getElementById('z-report-shift').value;
-         
-         doc.setFontSize(20);
+         const toDate   = document.getElementById('z-to-date').value;
+         const shift    = document.getElementById('z-report-shift').value;
+
+         const salesTxt   = document.getElementById('z-system-sales').innerText;
+         const cmvTxt     = document.getElementById('z-system-cmv').innerText;
+         const cmvPercTxt = document.getElementById('z-system-cmv-perc').innerText;
+         const marginTxt  = document.getElementById('z-system-margin').innerText;
+         const avgTkt     = document.getElementById('z-avg-ticket').innerText;
+         const manualVal  = parseFloat(document.getElementById('z-actual-sales').value) || 0;
+
+         const projVal    = document.getElementById('z-projection-value')?.innerText || '-';
+         const projDetail = document.getElementById('z-projection-detail')?.innerText || '';
+         const projGrowth = document.getElementById('z-projection-growth')?.innerText || '-';
+
+         // ── 1. Fetch monthly history from Supabase ────────────────────────────
+         showLoading(true);
+         const { data: history } = await supabase
+           .from('daily_z_report')
+           .select('report_date, manual_actual_sales, system_total_cmv')
+           .order('report_date', { ascending: true });
+         showLoading(false);
+
+         // Build months map: { 'YYYY-MM': { sales, cmv } }
+         const monthsMap = {};
+         (history || []).forEach(h => {
+           const m = h.report_date.substring(0, 7);
+           if (!monthsMap[m]) monthsMap[m] = { sales: 0, cmv: 0 };
+           monthsMap[m].sales += parseFloat(h.manual_actual_sales) || 0;
+           monthsMap[m].cmv   += parseFloat(h.system_total_cmv)    || 0;
+         });
+
+         // Determine the "current" period month and prior months for chart
+         const periodMonth = fromDate.substring(0, 7);  // e.g. "2025-04"
+         const allMonthKeys = Object.keys(monthsMap).sort();
+         // Months strictly before the selected period month
+         const priorMonths = allMonthKeys.filter(k => k < periodMonth);
+         // All months to chart = prior + current period month
+         const chartMonths = [...priorMonths, periodMonth].filter(k => monthsMap[k]);
+         // If the period month isn't in the stored history, add it from the UI value
+         if (!monthsMap[periodMonth]) {
+           monthsMap[periodMonth] = { sales: parseFloat(salesTxt.replace(/[^0-9.-]/g, '')) || 0, cmv: 0 };
+         }
+
+         // ── 2. Render bar chart to an offscreen Canvas ────────────────────────
+         let chartImgData = null;
+         if (typeof Chart !== 'undefined' && chartMonths.length > 0) {
+           const offCanvas = document.createElement('canvas');
+           offCanvas.width  = 900;
+           offCanvas.height = 380;
+           const ctx = offCanvas.getContext('2d');
+
+           const labels   = chartMonths.map(k => {
+             const [y, mo] = k.split('-');
+             const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+             return `${names[parseInt(mo)-1]} ${y}`;
+           });
+           const salesArr = chartMonths.map(k => monthsMap[k].sales);
+
+           // Fill background
+           ctx.fillStyle = '#1a1a2e';
+           ctx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+           const tmpChart = new Chart(ctx, {
+             type: 'bar',
+             data: {
+               labels,
+               datasets: [{
+                 label: 'Facturación ($)',
+                 data: salesArr,
+                 backgroundColor: chartMonths.map(k =>
+                   k === periodMonth ? 'rgba(187,147,92,0.9)' : 'rgba(59,130,246,0.7)'
+                 ),
+                 borderRadius: 6,
+                 borderWidth: 0
+               }]
+             },
+             options: {
+               animation: false,
+               responsive: false,
+               plugins: {
+                 legend: { labels: { color: '#ccc', font: { size: 14 } } }
+               },
+               scales: {
+                 y: {
+                   ticks: { color: '#94a3b8', callback: v => '$' + v.toLocaleString('es-AR') },
+                   grid:  { color: 'rgba(255,255,255,0.08)' }
+                 },
+                 x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+               }
+             }
+           });
+
+           // Wait one tick so Chart.js finishes drawing
+           await new Promise(r => setTimeout(r, 120));
+           chartImgData = offCanvas.toDataURL('image/png');
+           tmpChart.destroy();
+         }
+
+         // ── 3. Build PDF ──────────────────────────────────────────────────────
+         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+         const W = doc.internal.pageSize.getWidth();
+
+         // Header band
+         doc.setFillColor(30, 20, 10);
+         doc.rect(0, 0, W, 28, 'F');
+         doc.setFontSize(18);
          doc.setTextColor(187, 147, 92);
-         doc.text("Reporte Z y Control de Gestión", 105, 20, { align: 'center' });
-         
-         doc.setFontSize(10);
-         doc.setTextColor(100);
-         doc.text(`Periodo: ${fromDate} al ${toDate} | Turno: ${shift}`, 105, 30, { align: 'center' });
-         
-         const sales = document.getElementById('z-system-sales').innerText;
-         const cmv = document.getElementById('z-system-cmv').innerText;
-         const cmvPerc = document.getElementById('z-system-cmv-perc').innerText;
-         const margin = document.getElementById('z-system-margin').innerText;
-         const avgTicket = document.getElementById('z-avg-ticket').innerText;
-         const manualVal = document.getElementById('z-actual-sales').value || "0";
-         
+         doc.setFont('helvetica', 'bold');
+         doc.text('Reporte Z — Control de Gestion', W / 2, 12, { align: 'center' });
+         doc.setFontSize(9);
+         doc.setTextColor(160, 140, 110);
+         doc.setFont('helvetica', 'normal');
+         doc.text(`Periodo: ${fromDate}  al  ${toDate}   |   Turno: ${shift}`, W / 2, 19, { align: 'center' });
+         doc.text(`Generado: ${new Date().toLocaleString('es-AR')}`, W / 2, 25, { align: 'center' });
+
+         // ── Section A: KPIs ──────────────────────────────────────────────────
+         let y = 35;
+         doc.setFontSize(11);
+         doc.setTextColor(187, 147, 92);
+         doc.setFont('helvetica', 'bold');
+         doc.text('INDICADORES DEL PERÍODO', 14, y);
+         y += 4;
+
          doc.autoTable({
-           startY: 40,
-           head: [['Métrica', 'Valor']],
+           startY: y,
+           head: [['Metrica', 'Valor']],
            body: [
-             ['Venta Sistema (Tickets)', sales],
-             ['Cierre Caja Manual', formatCurrency(parseFloat(manualVal) || 0)],
-             ['Costo Mercadería (CMV)', cmv],
-             ['CMV %', cmvPerc],
-             ['Margen Bruto %', margin],
-             ['Ticket Promedio', avgTicket]
+             ['Facturacion Sistema (Tickets)', salesTxt],
+             ['Cierre Caja Manual',            formatCurrency(manualVal)],
+             ['Costo Mercaderia (CMV)',         cmvTxt],
+             ['CMV %',                          cmvPercTxt],
+             ['Margen Bruto %',                 marginTxt],
+             ['Ticket Promedio',                avgTkt],
            ],
            theme: 'grid',
-           headStyles: { fillColor: [187, 147, 92] }
+           headStyles: { fillColor: [187, 147, 92], textColor: 255, fontStyle: 'bold' },
+           alternateRowStyles: { fillColor: [245, 245, 245] },
+           styles: { fontSize: 10 },
+           columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
          });
 
-         // Channel Breakdown Table
-         const channelDivs = document.querySelectorAll('#z-channel-breakdown div');
-         const channels = Array.from(channelDivs).map(div => {
-           const lines = div.innerText.split('\n').map(l => l.trim()).filter(l => l);
-           return [lines[0], lines[1], lines[2]];
+         // ── Section B: Proyección ─────────────────────────────────────────────
+         y = doc.lastAutoTable.finalY + 8;
+         doc.setFontSize(11);
+         doc.setTextColor(16, 185, 129);
+         doc.setFont('helvetica', 'bold');
+         doc.text('PROYECCIÓN AL CIERRE DEL MES', 14, y);
+         y += 4;
+
+         const projDetailClean = projDetail.replace(/\n/g, '  |  ').replace(/\s+/g, ' ').trim();
+         doc.autoTable({
+           startY: y,
+           head: [['Proyección Estimada', 'Variación vs Mes Anterior', 'Detalle']],
+           body: [[ projVal, projGrowth, projDetailClean ]],
+           theme: 'grid',
+           headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+           styles: { fontSize: 10 },
+           columnStyles: { 0: { fontStyle: 'bold', halign: 'center' }, 1: { halign: 'center' } }
          });
+
+         // ── Section C: Canales ────────────────────────────────────────────────
+         y = doc.lastAutoTable.finalY + 8;
+         // Use direct children only to avoid duplicating nested div content
+         const channelDivs = document.querySelectorAll('#z-channel-breakdown > div');
+         const channels = Array.from(channelDivs).map(div => {
+           const children = Array.from(div.children);
+           // Strip emoji/image and trim: name | percentage | amount
+           const name  = (children[0]?.innerText || '').replace(/[^\p{L}\p{N}\s]/gu, '').trim();
+           const perc  = (children[1]?.innerText || '').trim();
+           const monto = (children[2]?.innerText || '').trim();
+           return [name || '-', perc || '-', monto || '-'];
+         }).filter(r => r[0] !== '-' && r[1] !== '-');
 
          if (channels.length > 0) {
-           doc.text("Desglose por Canal de Venta", 14, doc.lastAutoTable.finalY + 10);
+           doc.setFontSize(11);
+           doc.setTextColor(59, 130, 246);
+           doc.setFont('helvetica', 'bold');
+           doc.text('DESGLOSE POR CANAL DE VENTA', 14, y);
+           y += 4;
            doc.autoTable({
-             startY: doc.lastAutoTable.finalY + 15,
+             startY: y,
              head: [['Canal', '% Incidencia', 'Monto']],
              body: channels,
              theme: 'striped',
-             headStyles: { fillColor: [59, 130, 246] }
+             headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+             styles: { fontSize: 10 },
+             columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' } }
            });
+           y = doc.lastAutoTable.finalY + 8;
+         }
+
+         // ── Section D: Gráfico comparativo ───────────────────────────────────
+         if (chartImgData && chartMonths.length > 1) {
+           // Check if we need a new page
+           if (y > 160) { doc.addPage(); y = 15; }
+
+           doc.setFontSize(11);
+           doc.setTextColor(187, 147, 92);
+           doc.setFont('helvetica', 'bold');
+           doc.text('COMPARATIVA DE FACTURACIÓN — HISTÓRICO DE MESES', 14, y);
+           y += 3;
+
+           doc.setFontSize(8);
+           doc.setTextColor(140);
+           doc.setFont('helvetica', 'italic');
+           doc.text('Barra dorada = período seleccionado   |   Barras azules = meses anteriores', 14, y + 4);
+           y += 8;
+
+           const chartH = 80;
+           const chartW = W - 28;
+           doc.addImage(chartImgData, 'PNG', 14, y, chartW, chartH);
+           y += chartH + 6;
+
+           // Monthly summary table below chart
+           const monthRows = chartMonths.map(k => {
+             const [yr, mo] = k.split('-');
+             const names = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+             const label = `${names[parseInt(mo)-1]} ${yr}`;
+             const isCurrent = k === periodMonth;
+             return [isCurrent ? `>> ${label} (actual)` : label, formatCurrency(monthsMap[k].sales)];
+           });
+
+           doc.autoTable({
+             startY: y,
+             head: [['Mes', 'Facturación']],
+             body: monthRows,
+             theme: 'striped',
+             headStyles: { fillColor: [80, 60, 20], textColor: 255 },
+             styles: { fontSize: 9 },
+             columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+             didParseCell: (data) => {
+               if (data.row.raw && data.row.raw[0] && data.row.raw[0].startsWith('➡')) {
+                 data.cell.styles.fillColor = [255, 248, 220];
+                 data.cell.styles.fontStyle = 'bold';
+                 data.cell.styles.textColor = [120, 80, 10];
+               }
+             }
+           });
+         }
+
+         // ── Footer ────────────────────────────────────────────────────────────
+         const pageCount = doc.internal.getNumberOfPages();
+         for (let i = 1; i <= pageCount; i++) {
+           doc.setPage(i);
+           doc.setFontSize(7);
+           doc.setTextColor(160);
+           doc.setFont('helvetica', 'normal');
+           doc.text(`Whole Lotta Burgers — Reporte Z | Pág. ${i} / ${pageCount}`, W / 2, 292, { align: 'center' });
          }
 
          doc.save(`Reporte_Z_${fromDate}_${toDate}.pdf`);
