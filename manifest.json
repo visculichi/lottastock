@@ -1,0 +1,24 @@
+{
+  "name": "Whole Lotta Burgers - Stock Control",
+  "short_name": "WLB Stock",
+  "description": "Sistema de gestión de stock e inventario para Whole Lotta Burgers",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
