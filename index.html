@@ -701,7 +701,11 @@
         </div>
         
         <!-- Section: Existing Items Lists -->
-        <div class="cards-grid" style="margin-top:10px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:35px; margin-bottom:15px; width:100%; flex-wrap:wrap; gap:15px;">
+           <h3 style="margin-bottom:0; font-family:var(--font-logo); font-weight:normal; letter-spacing:0.5px; color:#fff;">Listados de Control</h3>
+           <input type="text" id="recipe-manager-search" placeholder="🔎 Buscar insumo o receta..." style="width:100%; max-width:320px; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:white; padding:8px 15px; border-radius:8px; margin-bottom:0; font-size:13px; outline:none;">
+        </div>
+        <div class="cards-grid" style="margin-top:0; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
           <div class="glass-panel" style="overflow-x: auto;">
             <h3>Listado de Insumos</h3>
             <div id="raw-filters" style="display:flex; gap:10px; margin-top:10px; margin-bottom:15px; overflow-x:auto;"></div>
@@ -1546,6 +1550,9 @@
     let defaultDepositId = null;
     let allRecipesGlobal = []; // Store recipes to avoid refetching for local calculations
     let selectedOrderType = 'Salón'; // Default order type
+    let activeRawFilter = null;
+    let activeRecipeFilter = null;
+    let recipeSearchQuery = '';
 
     let latestInventoryData = [];
     let thresholdMapGlobal = {};
@@ -2634,10 +2641,12 @@
     }
 
     window.filterRaws = (cat) => {
+      activeRawFilter = cat;
       renderRawsTable(cat);
     };
 
     window.filterRecipes = (cat) => {
+      activeRecipeFilter = cat;
       renderRecipesTable(cat);
     };
 
@@ -2714,8 +2723,8 @@
                 const rawsScroll = rawsPanel ? rawsPanel.scrollTop : 0;
                 const recipesScroll = recipesPanel ? recipesPanel.scrollTop : 0;
 
-                renderRawsTable(null);
-                renderRecipesTable(null);
+                renderRawsTable(activeRawFilter);
+                renderRecipesTable(activeRecipeFilter);
 
                 // Restore scroll positions
                 window.scrollTo(scrollX, scrollY);
@@ -2956,10 +2965,17 @@
 
     function renderRawsTable(cat) {
       const cats = [...new Set(rawItemsData.map(i => i.category || 'Gral'))];
-      rawFilters.innerHTML = `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:var(--primary-color);" onclick="window.filterRaws(null)">Todas</button>` + 
-        cats.map(c => `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="window.filterRaws('${c}')">${c}</button>`).join('');
+      const allActiveStyle = !cat ? 'background:var(--primary-color); color:#fff; border-color:var(--primary-color);' : '';
+      rawFilters.innerHTML = `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; ${allActiveStyle}" onclick="window.filterRaws(null)">Todas</button>` + 
+        cats.map(c => {
+          const activeStyle = (c === cat) ? 'background:var(--primary-color); color:#fff; border-color:var(--primary-color);' : '';
+          return `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; ${activeStyle}" onclick="window.filterRaws('${c}')">${c}</button>`;
+        }).join('');
 
-      const filtered = cat ? rawItemsData.filter(i => (i.category || 'Gral') === cat) : rawItemsData;
+      let filtered = cat ? rawItemsData.filter(i => (i.category || 'Gral') === cat) : rawItemsData;
+      if (recipeSearchQuery) {
+        filtered = filtered.filter(i => i.name.toLowerCase().includes(recipeSearchQuery));
+      }
       
       listRaws.innerHTML = filtered.map(i => {
         const bulkPrice = (i.cost || 0) * (i.bulk_size || 1);
@@ -2989,15 +3005,22 @@
 
     function renderRecipesTable(cat) {
       const cats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
+      const allActiveStyle = !cat ? 'background:var(--primary-color); color:#fff; border-color:var(--primary-color);' : '';
       recipeFilters.innerHTML = `<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:var(--primary-color);" onclick="window.filterRecipes(null)">Todas</button>
-          ${cats.map(c => `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px;" onclick="window.filterRecipes('${c}')">${c}</button>`).join('')}
+          <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; ${allActiveStyle}" onclick="window.filterRecipes(null)">Todas</button>
+          ${cats.map(c => {
+            const activeStyle = (c === cat) ? 'background:var(--primary-color); color:#fff; border-color:var(--primary-color);' : '';
+            return `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; ${activeStyle}" onclick="window.filterRecipes('${c}')">${c}</button>`;
+          }).join('')}
         </div>
         <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:#8b5cf6; color:#a78bfa;" onclick="window.toggleAllIngredients()">👁️ Ver/Ocultar Composición</button>
       </div>`;
 
-      const filtered = cat ? finalItemsData.filter(i => (i.category || 'Gral') === cat) : finalItemsData;
+      let filtered = cat ? finalItemsData.filter(i => (i.category || 'Gral') === cat) : finalItemsData;
+      if (recipeSearchQuery) {
+        filtered = filtered.filter(i => i.name.toLowerCase().includes(recipeSearchQuery));
+      }
 
       listRecipesTable.innerHTML = filtered.map(i => 
         `<tr><td>
@@ -3075,8 +3098,8 @@
               renderBulkTargets();
           }
 
-          renderRawsTable(null);
-          renderRecipesTable(null);
+          renderRawsTable(activeRawFilter);
+          renderRecipesTable(activeRecipeFilter);
         }
       } catch (err) {
         console.error("Error en loadRecipesView:", err);
@@ -3142,15 +3165,20 @@
       const htmlRows = currentRecipeItems.map((i, index) => {
         const rowCost = i.qty * (i.cost || 0);
         totalCost += rowCost;
-        const upBtn = index > 0 ? `<button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:10px;" onclick="window.moveRecipeItemUp(${index})">▲</button>` : `<span style="width:22px; display:inline-block;"></span>`;
-        const downBtn = index < currentRecipeItems.length - 1 ? `<button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:10px;" onclick="window.moveRecipeItemDown(${index})">▼</button>` : `<span style="width:22px; display:inline-block;"></span>`;
-        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <span>${i.qty} x ${i.name} <span style="color:var(--text-muted); font-size:12px; margin-left:5px;">(${formatCurrency(rowCost)})</span></span>
+        return `<div class="recipe-drag-row" 
+             draggable="true" 
+             ondragstart="window.dragStartRecipeItem(event, ${index})"
+             ondragover="window.dragOverRecipeItem(event)"
+             ondragleave="window.dragLeaveRecipeItem(event)"
+             ondrop="window.dropRecipeItem(event, ${index})"
+             ondragend="window.dragEndRecipeItem(event)">
+          <div style="display:flex; align-items:center;">
+            <div class="drag-handle" title="Arrastrar para reordenar">☰</div>
+            <span><strong>${i.qty}</strong> x ${i.name} <span style="color:var(--text-muted); font-size:12px; margin-left:5px;">(${formatCurrency(rowCost)})</span></span>
+          </div>
           <div style="display:flex; gap:2px; align-items:center;">
-            ${upBtn}
-            ${downBtn}
             <button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:12px; margin-left:8px;" onclick="window.editRecipeItem(${index})" title="Editar Gramaje">✏️</button>
-            <button class="btn" style="padding:2px 8px; color:red; background:none; margin-left:8px;" onclick="window.removeRecipeItem(${index})">X</button>
+            <button class="btn" style="padding:2px 8px; color:#ef4444; background:none; margin-left:8px;" onclick="window.removeRecipeItem(${index})">✕</button>
           </div>
         </div>`;
       }).join('');
@@ -3173,23 +3201,47 @@
       renderRecipeList();
     }
 
-    window.moveRecipeItemUp = (index) => {
-      if (index > 0) {
-        const temp = currentRecipeItems[index - 1];
-        currentRecipeItems[index - 1] = currentRecipeItems[index];
-        currentRecipeItems[index] = temp;
-        renderRecipeList();
-      }
-    }
+    let draggedRecipeItemIndex = null;
 
-    window.moveRecipeItemDown = (index) => {
-      if (index < currentRecipeItems.length - 1) {
-        const temp = currentRecipeItems[index + 1];
-        currentRecipeItems[index + 1] = currentRecipeItems[index];
-        currentRecipeItems[index] = temp;
+    window.dragStartRecipeItem = (event, index) => {
+      draggedRecipeItemIndex = index;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', index);
+      // Wait for next tick so that the dragged item itself has the style but the placeholder drag image remains normal
+      setTimeout(() => {
+        event.target.classList.add('dragging');
+      }, 0);
+    };
+
+    window.dragOverRecipeItem = (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      event.currentTarget.classList.add('drag-over');
+    };
+
+    window.dragLeaveRecipeItem = (event) => {
+      event.currentTarget.classList.remove('drag-over');
+    };
+
+    window.dropRecipeItem = (event, targetIndex) => {
+      event.preventDefault();
+      event.currentTarget.classList.remove('drag-over');
+      if (draggedRecipeItemIndex !== null && draggedRecipeItemIndex !== targetIndex) {
+        const movedItem = currentRecipeItems.splice(draggedRecipeItemIndex, 1)[0];
+        currentRecipeItems.splice(targetIndex, 0, movedItem);
         renderRecipeList();
       }
-    }
+      draggedRecipeItemIndex = null;
+    };
+
+    window.dragEndRecipeItem = (event) => {
+      event.currentTarget.classList.remove('dragging');
+      const rows = recipeList.querySelectorAll('.recipe-drag-row');
+      rows.forEach(r => {
+        r.classList.remove('dragging');
+        r.classList.remove('drag-over');
+      });
+    };
 
     // --- Init Application ---
     let priceChart = null;
@@ -5264,6 +5316,16 @@
           abmRecipeIng.value = '';
           abmRecipeQty.value = '';
           renderRecipeList();
+        });
+      }
+
+      // Search Recipe/Insumos
+      const recipeManagerSearch = document.getElementById('recipe-manager-search');
+      if (recipeManagerSearch) {
+        recipeManagerSearch.addEventListener('input', (e) => {
+          recipeSearchQuery = e.target.value.toLowerCase().trim();
+          renderRawsTable(activeRawFilter);
+          renderRecipesTable(activeRecipeFilter);
         });
       }
 

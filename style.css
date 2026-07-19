@@ -288,3 +288,49 @@ label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-m
   border-color: var(--primary-color);
   font-weight: 900;
 }
+
+/* Drag and Drop styles for recipes */
+.recipe-drag-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  margin-bottom: 6px;
+  transition: background-color 0.2s, border-color 0.2s, opacity 0.2s;
+  cursor: grab;
+}
+.recipe-drag-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(187, 147, 92, 0.3);
+}
+.recipe-drag-row.dragging {
+  opacity: 0.4;
+  border: 1px dashed var(--primary-color);
+  background: rgba(187, 147, 92, 0.05);
+}
+.recipe-drag-row.drag-over {
+  border: 1px solid var(--primary-color);
+  background: rgba(187, 147, 92, 0.15);
+  box-shadow: 0 0 8px rgba(187, 147, 92, 0.3);
+}
+.drag-handle {
+  color: var(--primary-color);
+  font-size: 16px;
+  margin-right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.recipe-drag-row:hover .drag-handle {
+  background: rgba(187, 147, 92, 0.1);
+  border-color: rgba(187, 147, 92, 0.2);
+}
