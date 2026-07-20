@@ -1645,21 +1645,54 @@
         'Pedidos Ya': 0
       };
 
+      // Fetch actual totals from sales table to respect custom discounts/prices
+      let salesList = [];
+      for (let i = 0; i < validSaleIds.length; i += CHUNK_SIZE) {
+        const chunk = validSaleIds.slice(i, i + CHUNK_SIZE);
+        const { data: chunkList, error: chunkErr } = await supabase.from('sales')
+          .select('id, total_amount, order_type')
+          .in('id', chunk);
+        if (chunkErr) console.error("Sales chunk query error:", chunkErr);
+        if (chunkList) salesList = salesList.concat(chunkList);
+      }
+
+      // Group sale items by sale_id for lookup
+      const saleItemsMap = {};
+      if (salesData) {
+        salesData.forEach(si => {
+          if (!saleItemsMap[si.sale_id]) saleItemsMap[si.sale_id] = [];
+          saleItemsMap[si.sale_id].push(si);
+        });
+      }
+
+      if (salesList) {
+        salesList.forEach(s => {
+          let amt = parseFloat(s.total_amount) || 0;
+          
+          // Restore logic: if total_amount is 0 or missing, calculate from items
+          if (amt <= 0) {
+            const items = saleItemsMap[s.id] || [];
+            items.forEach(si => {
+              const price = itemsPriceMap[si.product_id] || 0;
+              amt += (si.quantity * price);
+            });
+          }
+
+          totalSales += amt;
+          const oType = s.order_type || 'Salón';
+          if (salesByChannel[oType] !== undefined) {
+            salesByChannel[oType] += amt;
+          } else {
+            salesByChannel[oType] = (salesByChannel[oType] || 0) + amt;
+          }
+        });
+      }
+
       if (salesData) {
         salesData.forEach(si => {
           const qty = si.quantity || 0;
           const cost = itemsCostMap[si.product_id] || 0;
-          const price = itemsPriceMap[si.product_id] || 0;
-          const revenue = (qty * price);
-          totalSales += revenue;
           cmvTotal += (qty * cost);
-
-          const oType = si.sales?.order_type || 'Salón';
-          if (salesByChannel[oType] !== undefined) {
-            salesByChannel[oType] += revenue;
-          } else {
-            salesByChannel[oType] = (salesByChannel[oType] || 0) + revenue;
-          }
 
           if(!topProducts[si.product_id]) topProducts[si.product_id] = { name: si.items?.name, qty: 0 };
           topProducts[si.product_id].qty += qty;
@@ -3138,7 +3171,48 @@
         ticketList.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No hay productos en el ticket.</p>';
         return;
       }
-      ticketList.innerHTML = currentTicketItems.map((i, index) => `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.1);"><span>${i.quantity}x ${i.name}</span><button class="btn" style="padding:2px 8px; color:red; background:none;" onclick="window.removeTicketItem(${index})">X</button></div>`).join('');
+      
+      const htmlRows = currentTicketItems.map((i, index) => {
+        const itemTotal = i.price * i.quantity;
+        
+        let priceColHtml = '';
+        if (i.isEditing) {
+          priceColHtml = `<div style="display:flex; align-items:center; gap:4px;">
+            <span style="font-size:12px; color:var(--text-muted);">Total: $</span>
+            <input type="number" id="pos-edit-price-${index}" value="${itemTotal}" style="width:90px; padding:4px 8px; font-size:13px; border-radius:6px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:#10b981; font-weight:bold; outline:none; text-align:right; margin-bottom:0;" onkeydown="if(event.key === 'Enter') window.saveTicketItemPrice(${index})">
+            <button class="btn" style="padding:2px 6px; color:#10b981; background:none; font-size:14px;" onclick="window.saveTicketItemPrice(${index})" title="Guardar Precio">💾</button>
+          </div>`;
+        } else {
+          priceColHtml = `<div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:12px; color:var(--text-muted);">Total:</span>
+            <span style="font-size:13px; color:#10b981; font-weight:bold;">${formatCurrency(itemTotal)}</span>
+            <button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:12px; opacity:0.7;" onclick="window.editTicketItemPrice(${index})" title="Editar Precio">✏️</button>
+          </div>`;
+        }
+
+        return `<div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold; font-size:14px; color:#fff;">${i.name}</span>
+            <button class="btn" style="padding:2px 8px; color:#ef4444; background:none; font-size:14px;" onclick="window.removeTicketItem(${index})">✕</button>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="window.updateTicketItemQty(${index}, -1)">-</button>
+              <span style="font-size:13px; color:var(--text-muted); min-width:20px; text-align:center;">${i.quantity}x</span>
+              <button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="window.updateTicketItemQty(${index}, 1)">+</button>
+            </div>
+            ${priceColHtml}
+          </div>
+        </div>`;
+      }).join('');
+
+      const grandTotal = currentTicketItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+      const grandTotalHtml = `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding-top:10px; border-top:2px solid var(--primary-color); font-weight:bold; font-size:16px;">
+        <span style="color:#fff;">Total del Ticket:</span>
+        <span style="color:var(--primary-color);">${formatCurrency(grandTotal)}</span>
+      </div>`;
+
+      ticketList.innerHTML = htmlRows + grandTotalHtml;
     }
 
     window.removeTicketItem = (index) => {
@@ -3146,12 +3220,51 @@
       renderTicket();
     }
 
+    window.updateTicketItemQty = (index, delta) => {
+      const item = currentTicketItems[index];
+      if (!item) return;
+      item.quantity += delta;
+      if (item.quantity <= 0) {
+        currentTicketItems.splice(index, 1);
+      }
+      renderTicket();
+    }
+
+    window.editTicketItemPrice = (index) => {
+      currentTicketItems[index].isEditing = true;
+      renderTicket();
+      setTimeout(() => {
+        const input = document.getElementById(`pos-edit-price-${index}`);
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 50);
+    }
+
+    window.saveTicketItemPrice = (index) => {
+      const item = currentTicketItems[index];
+      if (!item) return;
+      const input = document.getElementById(`pos-edit-price-${index}`);
+      if (input) {
+        const total = parseFloat(input.value);
+        if (!isNaN(total) && total >= 0) {
+          item.price = total / (item.quantity || 1);
+        }
+      }
+      item.isEditing = false;
+      renderTicket();
+    }
+
     window.addPosItem = (id, name) => {
       const existing = currentTicketItems.find(i => i.product_id === id);
+      const posItem = posItemsData.find(i => i.id === id);
+      const defaultPrice = posItem ? (posItem.sale_price || 0) : 0;
+      
       if (existing) {
         existing.quantity += 1;
       } else {
-        currentTicketItems.push({ product_id: id, name: name, quantity: 1 });
+        currentTicketItems.push({ product_id: id, name: name, quantity: 1, price: defaultPrice });
       }
       renderTicket();
     }
