@@ -285,6 +285,66 @@
             <label style="margin-top:15px;">Número de Ticket</label>
             <input type="text" id="pos-ticket-number" placeholder="Ej: T-001024">
             
+            <label style="margin-top:15px; color:var(--primary-color); font-weight:bold;">Descuento del Ticket</label>
+            <div id="ticket-discount-selector" style="display:grid; grid-template-columns: repeat(6, 1fr); gap:6px; margin-top:5px; margin-bottom: 20px;">
+              <button type="button" class="btn order-type-btn active" onclick="window.setTicketDiscount(0, 'Ninguno')" id="btn-discount-0" style="padding: 6px 0; font-size: 11px;">0%</button>
+              <button type="button" class="btn order-type-btn" onclick="window.setTicketDiscount(10, '10% OFF')" id="btn-discount-10" style="padding: 6px 0; font-size: 11px;">10%</button>
+              <button type="button" class="btn order-type-btn" onclick="window.setTicketDiscount(15, '15% OFF')" id="btn-discount-15" style="padding: 6px 0; font-size: 11px;">15%</button>
+              <button type="button" class="btn order-type-btn" onclick="window.setTicketDiscount(20, '20% OFF')" id="btn-discount-20" style="padding: 6px 0; font-size: 11px;">20%</button>
+              <button type="button" class="btn order-type-btn" onclick="window.setTicketDiscount(25, '25% OFF')" id="btn-discount-25" style="padding: 6px 0; font-size: 11px;">25%</button>
+              <button type="button" class="btn order-type-btn" onclick="window.setTicketDiscount(50, '50% OFF')" id="btn-discount-50" style="padding: 6px 0; font-size: 11px;">50%</button>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
+              <label style="margin:0; color:var(--primary-color); font-weight:bold;">Etiqueta del Ticket</label>
+              <button type="button" class="btn btn-secondary" onclick="window.toggleTagManager()" style="padding: 2px 6px; font-size: 11px; font-weight: normal; border-color: rgba(255,255,255,0.1);">⚙️ Administrar</button>
+            </div>
+            <div id="ticket-tag-selector" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:5px; margin-bottom: 20px;">
+              <!-- Tag buttons will be dynamically injected here -->
+            </div>
+            
+            <!-- Tag Manager Modal (Hidden by default) -->
+            <div id="tag-manager-modal" class="modal hidden">
+              <div class="modal-content glass-panel" style="max-width:380px; text-align:left; border-left: 4px solid var(--primary-color); z-index:10005;">
+                <h3 style="color:var(--primary-color); margin-bottom:10px; font-size:20px; font-weight:normal;">⚙️ Administrar Etiquetas</h3>
+                <p style="color:var(--text-muted); font-size:12px; margin-bottom:15px;">Crea o elimina etiquetas de colores para tus pedidos.</p>
+                
+                <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid rgba(255,255,255,0.05);">
+                  <h4 style="font-size:12px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;" id="tag-form-title">Nueva Etiqueta</h4>
+                  <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div>
+                      <label style="font-size:11px; margin-bottom:3px;">Nombre</label>
+                      <input type="text" id="new-tag-name" placeholder="Ej: PROMO LUNES, 2x1" style="padding:8px; font-size:13px; margin-bottom:0; background:rgba(0,0,0,0.2); color:#fff; border:1px solid var(--panel-border); border-radius:8px;">
+                    </div>
+                    <div style="margin-top:5px;">
+                      <label style="font-size:11px; margin-bottom:3px;">Color</label>
+                      <select id="new-tag-color" style="padding:8px; font-size:13px; margin-bottom:0; height:37px; background:rgba(0,0,0,0.2); color:#fff; border:1px solid var(--panel-border); border-radius:8px;">
+                        <option value="#3b82f6">🔵 Azul</option>
+                        <option value="#ef4444">🔴 Rojo</option>
+                        <option value="#10b981">🟢 Verde</option>
+                        <option value="#f59e0b">🟡 Naranja</option>
+                        <option value="#8b5cf6">🟣 Violeta</option>
+                        <option value="#ec4899">💗 Rosa</option>
+                        <option value="#06b6d4">Celeste</option>
+                      </select>
+                    </div>
+                    <div id="tag-form-actions" style="display:flex; gap:8px; flex-direction:column;">
+                      <button type="button" class="btn btn-primary w-full" id="btn-save-ticket-tag" onclick="window.createTicketTag()" style="padding:8px; font-size:13px; margin-top:10px;">Crear Etiqueta</button>
+                    </div>
+                  </div>
+                </div>
+
+                <h4 style="font-size:12px; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px;">Etiquetas Existentes</h4>
+                <div id="tag-manager-list" style="max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+                  <p style="color:var(--text-muted); font-size:12px;">Cargando etiquetas...</p>
+                </div>
+
+                <div class="modal-actions" style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.05); padding-top:15px;">
+                  <button class="btn btn-secondary w-full" onclick="window.toggleTagManager()">Cerrar</button>
+                </div>
+              </div>
+            </div>
+
             <div class="ticket-list" id="ticket-list" style="margin: 20px 0; min-height: 150px;">
               <p style="color:var(--text-muted); font-size:13px;">No hay productos en el ticket.</p>
             </div>
@@ -308,6 +368,12 @@
                 <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Hasta:</label>
                 <input type="date" id="history-date-to" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white;">
               </div>
+              <div>
+                <label style="font-size:12px; margin-right:5px; color:var(--text-muted);">Etiqueta:</label>
+                <select id="history-filter-tag" style="padding:8px; font-size:14px; border-radius:4px; border:none; background:rgba(255,255,255,0.1); color:white; width:150px; margin-bottom:0; height:37px;">
+                  <option value="all">Todas</option>
+                </select>
+              </div>
               <button class="btn btn-primary" id="btn-filter-history" style="padding:8px 15px;">🔍 Filtrar Rango</button>
             </div>
             <div style="display:flex; gap:8px;">
@@ -319,6 +385,26 @@
             </div>
           </div>
         </header>
+
+        <!-- Promotion Metrics Summary Grid -->
+        <div class="cards-grid" id="history-metrics-grid" style="margin-bottom: 20px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+          <div class="card stat-card glass-panel" style="border-left: 4px solid var(--primary-color); padding: 15px;">
+            <h3 style="font-size:12px; margin-bottom:5px; text-transform: uppercase; color:var(--text-muted);">Total Facturado</h3>
+            <p class="stat-value" id="hist-metric-total" style="font-size:24px; margin-top:5px; color:#fff; font-family:var(--font-logo);">$-</p>
+          </div>
+          <div class="card stat-card glass-panel" style="border-left: 4px solid #ef4444; padding: 15px;">
+            <h3 style="font-size:12px; margin-bottom:5px; text-transform: uppercase; color:var(--text-muted);">Total Descuentos (Promos)</h3>
+            <p class="stat-value" id="hist-metric-discounts" style="font-size:24px; color:#ef4444; margin-top:5px; font-family:var(--font-logo);">$-</p>
+          </div>
+          <div class="card stat-card glass-panel" style="border-left: 4px solid #10b981; padding: 15px;">
+            <h3 style="font-size:12px; margin-bottom:5px; text-transform: uppercase; color:var(--text-muted);">Tickets con Promo</h3>
+            <p class="stat-value" id="hist-metric-promo-count" style="font-size:24px; color:#10b981; margin-top:5px; font-family:var(--font-logo);">- <span id="hist-metric-promo-pct" style="font-size:14px; color:var(--text-muted); font-weight:normal;">-</span></p>
+          </div>
+          <div class="card stat-card glass-panel" style="border-left: 4px solid #8b5cf6; padding: 15px;">
+            <h3 style="font-size:12px; margin-bottom:5px; text-transform: uppercase; color:var(--text-muted);">Promo / Tag Frecuente</h3>
+            <p class="stat-value" id="hist-metric-top-promo" style="font-size:16px; color:#a78bfa; margin-top:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</p>
+          </div>
+        </div>
 
         <div class="cards-grid">
           <div class="glass-panel" style="grid-column: span 3; padding:0; overflow:hidden;">
@@ -1419,6 +1505,192 @@
       const activeBtn = document.getElementById(idMap[type]);
       if (activeBtn) activeBtn.classList.add('active');
     };
+    
+    window.setTicketDiscount = (percentage, name) => {
+      selectedDiscountPercent = percentage;
+      selectedDiscountName = name;
+      
+      // Apply discount only to items currently listed in the ticket
+      currentTicketItems.forEach(item => {
+        item.discount_percent = percentage;
+      });
+
+      document.querySelectorAll('#ticket-discount-selector .order-type-btn').forEach(btn => btn.classList.remove('active'));
+      const idMap = {
+        0: 'btn-discount-0',
+        10: 'btn-discount-10',
+        15: 'btn-discount-15',
+        20: 'btn-discount-20',
+        25: 'btn-discount-25',
+        50: 'btn-discount-50'
+      };
+      const activeBtn = document.getElementById(idMap[percentage]);
+      if (activeBtn) activeBtn.classList.add('active');
+      renderTicket();
+    };
+
+    // Ticket Tag Management
+    window.toggleTagManager = () => {
+      const modal = document.getElementById('tag-manager-modal');
+      if (modal) {
+        modal.classList.toggle('hidden');
+        window.resetTagForm();
+        if (!modal.classList.contains('hidden')) {
+          renderTagManagerList();
+        }
+      }
+    };
+
+    async function loadTicketTags() {
+      try {
+        const { data, error } = await supabase.from('ticket_tags').select('*').order('name');
+        if (error) throw error;
+        allTicketTagsGlobal = data || [];
+        renderTicketTagSelector();
+      } catch (err) {
+        console.error("Error loading ticket tags:", err);
+      }
+    }
+
+    function renderTicketTagSelector() {
+      const container = document.getElementById('ticket-tag-selector');
+      if (!container) return;
+      
+      const noneActive = !selectedTicketTagId ? 'active' : '';
+      let html = `<button type="button" class="btn order-type-btn ${noneActive}" onclick="window.selectTicketTag(null)" style="padding:4px 8px; font-size:11px; border-radius:12px; margin-bottom:0;">Sin Etiqueta</button>`;
+      
+      allTicketTagsGlobal.forEach(tag => {
+        const active = selectedTicketTagId === tag.id ? 'active' : '';
+        const styleActive = selectedTicketTagId === tag.id ? `background:${tag.color} !important; color:#fff !important; border-color:${tag.color} !important; font-weight:bold;` : `border-color:${tag.color}33;`;
+        html += `<button type="button" class="btn order-type-btn ${active}" onclick="window.selectTicketTag('${tag.id}')" style="padding:4px 8px; font-size:11px; border-radius:12px; margin-bottom:0; ${styleActive}">
+          <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${tag.color}; margin-right:4px;"></span>${tag.name}
+        </button>`;
+      });
+      container.innerHTML = html;
+    }
+
+    window.selectTicketTag = (id) => {
+      selectedTicketTagId = id;
+      
+      // Apply tag only to items currently listed in the ticket
+      currentTicketItems.forEach(item => {
+        item.ticket_tag_id = id;
+      });
+      
+      renderTicketTagSelector();
+      renderTicket();
+    };
+
+    function renderTagManagerList() {
+      const listEl = document.getElementById('tag-manager-list');
+      if (!listEl) return;
+      if (allTicketTagsGlobal.length === 0) {
+        listEl.innerHTML = '<p style="color:var(--text-muted); font-size:12px;">No hay etiquetas creadas.</p>';
+        return;
+      }
+      listEl.innerHTML = allTicketTagsGlobal.map(tag => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${tag.color};"></span>
+            <span style="font-size:13px; font-weight:500; color:#fff;">${tag.name}</span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn" style="padding:2px 8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:#fff; font-size:11px;" onclick="window.editTicketTag('${tag.id}')" title="Editar">✏️</button>
+            <button type="button" class="btn" style="padding:2px 8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:#f87171; font-size:11px;" onclick="window.deleteTicketTag('${tag.id}')" title="Eliminar">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.editTicketTag = (id) => {
+      const tag = allTicketTagsGlobal.find(t => t.id === id);
+      if (!tag) return;
+      editingTicketTagId = id;
+      
+      const formTitle = document.getElementById('tag-form-title');
+      const nameInput = document.getElementById('new-tag-name');
+      const colorInput = document.getElementById('new-tag-color');
+      const actionsDiv = document.getElementById('tag-form-actions');
+      
+      if (formTitle) formTitle.innerText = "Editar Etiqueta";
+      if (nameInput) nameInput.value = tag.name;
+      if (colorInput) colorInput.value = tag.color;
+      
+      if (actionsDiv) {
+        actionsDiv.innerHTML = `
+          <button type="button" class="btn btn-primary w-full" onclick="window.createTicketTag()" style="padding:8px; font-size:13px; margin-top:10px;">Guardar Cambios</button>
+          <button type="button" class="btn btn-secondary w-full" onclick="window.resetTagForm()" style="padding:8px; font-size:13px; margin-top:5px;">Cancelar</button>
+        `;
+      }
+    };
+
+    window.resetTagForm = () => {
+      editingTicketTagId = null;
+      
+      const formTitle = document.getElementById('tag-form-title');
+      const nameInput = document.getElementById('new-tag-name');
+      const colorInput = document.getElementById('new-tag-color');
+      const actionsDiv = document.getElementById('tag-form-actions');
+      
+      if (formTitle) formTitle.innerText = "Nueva Etiqueta";
+      if (nameInput) nameInput.value = '';
+      if (colorInput) colorInput.value = '#3b82f6';
+      
+      if (actionsDiv) {
+        actionsDiv.innerHTML = `
+          <button type="button" class="btn btn-primary w-full" id="btn-save-ticket-tag" onclick="window.createTicketTag()" style="padding:8px; font-size:13px; margin-top:10px;">Crear Etiqueta</button>
+        `;
+      }
+    };
+
+    window.createTicketTag = async () => {
+      const nameInput = document.getElementById('new-tag-name');
+      const colorInput = document.getElementById('new-tag-color');
+      if (!nameInput || !colorInput) return;
+      const name = nameInput.value.trim();
+      const color = colorInput.value;
+      if (!name) {
+        await customAlert("Por favor ingresa un nombre para la etiqueta.", "Dato Faltante");
+        return;
+      }
+      showLoading(true);
+      try {
+        if (editingTicketTagId) {
+          const { error } = await supabase.from('ticket_tags').update({ name, color }).eq('id', editingTicketTagId);
+          if (error) throw error;
+          window.resetTagForm();
+        } else {
+          const { error } = await supabase.from('ticket_tags').insert({ name, color });
+          if (error) throw error;
+          nameInput.value = '';
+        }
+        await loadTicketTags();
+        renderTagManagerList();
+      } catch (err) {
+        await customAlert("Error al guardar etiqueta: " + err.message, "Error");
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    window.deleteTicketTag = async (id) => {
+      const conf = await customConfirm("¿Seguro que deseas eliminar esta etiqueta? Las ventas existentes que la usen ya no mostrarán el tag.", "Eliminar Etiqueta");
+      if (!conf) return;
+      showLoading(true);
+      try {
+        const { error } = await supabase.from('ticket_tags').delete().eq('id', id);
+        if (error) throw error;
+        if (selectedTicketTagId === id) {
+          selectedTicketTagId = null;
+        }
+        await loadTicketTags();
+        renderTagManagerList();
+      } catch (err) {
+        await customAlert("Error al eliminar etiqueta: " + err.message, "Error");
+      } finally {
+        showLoading(false);
+      }
+    };
 
     window.customAlert = function(msg, title = "Aviso") {
       return new Promise(resolve => {
@@ -1550,6 +1822,12 @@
     let defaultDepositId = null;
     let allRecipesGlobal = []; // Store recipes to avoid refetching for local calculations
     let selectedOrderType = 'Salón'; // Default order type
+    let selectedDiscountPercent = 0;
+    let selectedDiscountName = 'Ninguno';
+    let allTicketTagsGlobal = [];
+    let selectedTicketTagId = null;
+    let editingTicketTagId = null;
+    let currentPOSCategoryFilter = 'Hamburguesas';
     let activeRawFilter = null;
     let activeRecipeFilter = null;
     let recipeSearchQuery = '';
@@ -1868,21 +2146,33 @@
       return data.filter(i => i.items && i.items.hide_in_inventory !== true);
     }
 
-    async function processSale(ticketNumber, items, depositId, saleDateStr, orderType) {
+    async function processSale(ticketNumber, items, depositId, saleDateStr, orderType, discountName = 'Ninguno', discountPercent = 0, ticketTagId = null) {
       try {
-        const totalAmount = items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+        const subtotal = items.reduce((sum, it) => sum + (it.price * it.quantity), 0);
+        const discountAmount = items.reduce((sum, it) => sum + ((it.price * it.quantity) * ((it.discount_percent || 0) / 100)), 0);
+        const totalAmount = subtotal - discountAmount;
         const insertPayload = { 
           ticket_number: ticketNumber, 
           total_amount: totalAmount,
+          subtotal_amount: subtotal,
+          discount_type: discountName,
+          discount_amount: discountAmount,
           sale_date: saleDateStr || new Date().toISOString().split('T')[0],
           shift: document.getElementById('pos-sale-shift').value || 'Día',
-          order_type: orderType || 'Salón'
+          order_type: orderType || 'Salón',
+          ticket_tag_id: ticketTagId
         };
         
         const { data: saleData, error: saleError } = await supabase.from('sales').insert(insertPayload).select().single()
         if (saleError) throw saleError;
         
-        const itemsToInsert = items.map(i => ({ sale_id: saleData.id, product_id: i.product_id, quantity: i.quantity }));
+        const itemsToInsert = items.map(i => ({ 
+          sale_id: saleData.id, 
+          product_id: i.product_id, 
+          quantity: i.quantity,
+          discount_percent: i.discount_percent || 0,
+          ticket_tag_id: i.ticket_tag_id || null
+        }));
         const { error: itemsError } = await supabase.from('sale_items').insert(itemsToInsert)
         if (itemsError) throw itemsError;
 
@@ -2172,6 +2462,28 @@
     // --- UI Listeners and Loaders ---
     async function loadHistoryView(fromStr, toStrRaw) {
       showLoading(true);
+      
+      // Load ticket tags to populate the tag filter selector
+      let tagsData = [];
+      try {
+        const { data } = await supabase.from('ticket_tags').select('*').order('name');
+        tagsData = data || [];
+        allTicketTagsGlobal = tagsData; // Keep global updated
+        
+        // Populate the filter dropdown
+        const filterSelect = document.getElementById('history-filter-tag');
+        if (filterSelect) {
+          const currentVal = filterSelect.value || 'all';
+          let optionsHtml = '<option value="all">Todas</option>';
+          tagsData.forEach(t => {
+            optionsHtml += `<option value="${t.id}" ${currentVal === t.id ? 'selected' : ''}>${t.name}</option>`;
+          });
+          filterSelect.innerHTML = optionsHtml;
+        }
+      } catch (err) {
+        console.error("Error loading tags in history:", err);
+      }
+
       const fromD = fromStr || document.getElementById('history-date-from').value;
       const toDRaw = toStrRaw || document.getElementById('history-date-to').value;
       const toD = toDRaw || fromD;
@@ -2179,14 +2491,117 @@
       const historyTbody = document.getElementById('history-tbody');
       
       let query = supabase.from('sales')
-        .select('*, sale_items(quantity, items(name, sale_price))')
+        .select('*, sale_items(quantity, discount_percent, ticket_tag_id, items(name, sale_price)), ticket_tags(name, color)')
         .order('created_at', { ascending: false });
         
       if (fromD) query = query.gte('sale_date', fromD);
       if (toD) query = query.lte('sale_date', toD);
       
+      // Check if tag filter is applied
+      const selectedFilterTag = document.getElementById('history-filter-tag')?.value || 'all';
+      if (selectedFilterTag !== 'all') {
+        query = query.eq('ticket_tag_id', selectedFilterTag);
+      }
+      
       const { data: sales } = await query;
       
+      // Calculate and render promo metrics
+      let totalSalesSum = 0;
+      let totalDiscountsSum = 0;
+      let promoTicketsCount = 0;
+      const promoCounts = {};
+
+      if (sales && sales.length > 0) {
+        sales.forEach(s => {
+          // Sum revenue: if tag filter is active, only count items matching that tag
+          if (selectedFilterTag !== 'all') {
+            s.sale_items.forEach(si => {
+              if (si.ticket_tag_id === selectedFilterTag) {
+                const itemPrice = parseFloat(si.items?.sale_price) || 0;
+                const itemDiscount = itemPrice * ((si.discount_percent || 0) / 100);
+                totalSalesSum += (itemPrice - itemDiscount) * si.quantity;
+              }
+            });
+          } else {
+            let displayTotal = parseFloat(s.total_amount) || 0;
+            if (displayTotal <= 0) {
+               s.sale_items.forEach(si => { displayTotal += (si.quantity * (parseFloat(si.items?.sale_price) || 0)); });
+            }
+            totalSalesSum += displayTotal;
+          }
+          
+          // Sum discounts: if a filter is active, only count discounts of items matching that tag
+          s.sale_items.forEach(si => {
+            if (si.discount_percent > 0) {
+              const itemPrice = parseFloat(si.items?.sale_price) || 0;
+              const itemDiscount = (itemPrice * (si.discount_percent / 100)) * si.quantity;
+              if (selectedFilterTag === 'all' || si.ticket_tag_id === selectedFilterTag) {
+                totalDiscountsSum += itemDiscount;
+              }
+            }
+          });
+
+          // Count tickets containing promo items
+          let hasPromoItem = false;
+          s.sale_items.forEach(si => {
+            const hasDiscount = si.discount_percent > 0;
+            const hasTag = !!si.ticket_tag_id;
+            if (selectedFilterTag !== 'all') {
+              if (si.ticket_tag_id === selectedFilterTag) {
+                hasPromoItem = true;
+              }
+            } else {
+              if (hasDiscount || hasTag) {
+                hasPromoItem = true;
+              }
+            }
+          });
+
+          if (hasPromoItem) {
+            promoTicketsCount++;
+          }
+
+          // Count promo frequencies
+          s.sale_items.forEach(si => {
+            if (si.discount_percent > 0) {
+              const dName = `${si.discount_percent}% OFF`;
+              promoCounts[dName] = (promoCounts[dName] || 0) + si.quantity;
+            }
+            if (si.ticket_tag_id) {
+              const tagObj = allTicketTagsGlobal.find(t => t.id === si.ticket_tag_id);
+              if (tagObj) {
+                const tName = `Tag: ${tagObj.name}`;
+                promoCounts[tName] = (promoCounts[tName] || 0) + si.quantity;
+              }
+            }
+          });
+        });
+      }
+
+      // Find top promo
+      let topPromo = 'Ninguna';
+      let topPromoMax = 0;
+      for (const [name, count] of Object.entries(promoCounts)) {
+        if (count > topPromoMax) {
+          topPromoMax = count;
+          topPromo = `${name} (${count} u.)`;
+        }
+      }
+
+      // Update metrics UI
+      const metricTotalEl = document.getElementById('hist-metric-total');
+      const metricDiscountsEl = document.getElementById('hist-metric-discounts');
+      const metricPromoCountEl = document.getElementById('hist-metric-promo-count');
+      const metricTopPromoEl = document.getElementById('hist-metric-top-promo');
+
+      if (metricTotalEl) metricTotalEl.innerText = formatCurrency(totalSalesSum);
+      if (metricDiscountsEl) metricDiscountsEl.innerText = formatCurrency(totalDiscountsSum);
+      if (metricPromoCountEl) {
+        const promoPct = sales && sales.length > 0 ? ((promoTicketsCount / sales.length) * 100).toFixed(0) : 0;
+        metricPromoCountEl.innerHTML = `${promoTicketsCount} <span style="font-size:14px; color:var(--text-muted); font-weight:normal;">(${promoPct}%)</span>`;
+      }
+      if (metricTopPromoEl) metricTopPromoEl.innerText = topPromo;
+
       if (!sales || sales.length === 0) {
         historyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No hay ventas en estas fechas.</td></tr>';
       } else {
@@ -2196,7 +2611,19 @@
           if (displayTotal <= 0) {
              s.sale_items.forEach(si => { displayTotal += (si.quantity * (parseFloat(si.items?.sale_price) || 0)); });
           }
-          const detailStr = s.sale_items.map(si => `${si.quantity}x ${si.items?.name || '?'}`).join(', ');
+          
+          const detailStr = s.sale_items.map(si => {
+            const discountLabel = si.discount_percent > 0 ? ` (${si.discount_percent}% OFF)` : '';
+            let tagBadge = '';
+            if (si.ticket_tag_id) {
+              const tagObj = allTicketTagsGlobal.find(t => t.id === si.ticket_tag_id);
+              if (tagObj) {
+                tagBadge = ` <span style="background:${tagObj.color || '#3b82f6'}; color:#fff; font-size:10px; font-weight:bold; padding:1px 5px; border-radius:4px; margin-left:3px; display:inline-block;">${tagObj.name}</span>`;
+              }
+            }
+            return `${si.quantity}x ${si.items?.name || '?'}${discountLabel}${tagBadge}`;
+          }).join(', ');
+          
           const delBtn = isAdmin ? `<button class="btn" style="padding:6px 12px; font-size:12px; color:red; border:1px solid rgba(239, 68, 68, 0.4);" onclick="window.deleteSaleTicket('${s.id}')">🗑️ Borrar</button>` : '';
           
           const oType = s.order_type || 'Salón';
@@ -2206,14 +2633,25 @@
             'Rappi': '<img src="RAPPI.webp" style="height:12px; margin-right:4px;">',
             'Pedidos Ya': '<img src="Pedidos YA.png" style="height:12px; margin-right:4px;">'
           };
+          
+          const tagBadgeHtml = (s.ticket_tag_id && s.ticket_tags) ? 
+            `<span style="background:${s.ticket_tags.color || '#3b82f6'}; color:#fff; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:12px; margin-left:6px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${s.ticket_tags.name}</span>` : '';
+            
           const typeDisplay = `<span style="font-size:11px; color:var(--text-muted); display:flex; align-items:center;">${typeIcons[oType] || '📦'} ${oType}</span>`;
+
+          const discountDetail = s.discount_amount > 0 ? 
+            `<div style="font-size:11px; color:#ef4444; font-weight:normal; margin-top:2px;">-${formatCurrency(s.discount_amount)} (${s.discount_type})</div>
+             <div style="font-size:10px; color:var(--text-muted); text-decoration:line-through; font-weight:normal;">${formatCurrency(s.subtotal_amount || (displayTotal + s.discount_amount))}</div>` : '';
 
           return `<tr>
             <td style="font-size:12px;">${new Date(s.created_at).toLocaleString('es-AR')}</td>
-            <td style="font-weight:bold;">${s.ticket_number}</td>
+            <td style="font-weight:bold;">${s.ticket_number}${tagBadgeHtml}</td>
             <td>${typeDisplay}</td>
             <td style="font-size:12px; color:var(--text-muted);">${detailStr}</td>
-            <td style="text-align:right; font-weight:bold; color:var(--primary-color);">${formatCurrency(displayTotal)}</td>
+            <td style="text-align:right; font-weight:bold; color:var(--primary-color);">
+              ${formatCurrency(displayTotal)}
+              ${discountDetail}
+            </td>
             <td style="text-align:center;">${delBtn}</td>
           </tr>`;
         }).join('');
@@ -2632,18 +3070,116 @@
     async function loadPOSView() {
       showLoading(true);
       posItemsData = await getPOSItems();
-      renderPOSGrid('Hamburguesas');
+      await loadTicketTags();
+      currentPOSCategoryFilter = 'Hamburguesas';
+      renderPOSGrid(currentPOSCategoryFilter);
       showLoading(false);
     }
     
     window.filterPOS = (cat) => {
+      currentPOSCategoryFilter = cat;
       renderPOSGrid(cat);
     };
 
+    window.dragStartCategory = (event, catName) => {
+      event.dataTransfer.setData('text/plain', catName);
+      event.dataTransfer.effectAllowed = 'move';
+    };
+
+    window.dragOverCategory = (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    };
+
+    window.dropCategory = (event, targetCatName) => {
+      event.preventDefault();
+      const draggedCatName = event.dataTransfer.getData('text/plain');
+      if (!draggedCatName || draggedCatName === targetCatName) return;
+
+      let categoryOrder = JSON.parse(localStorage.getItem('pos_category_order') || '[]');
+      const draggedIndex = categoryOrder.indexOf(draggedCatName);
+      const targetIndex = categoryOrder.indexOf(targetCatName);
+
+      if (draggedIndex > -1 && targetIndex > -1) {
+        categoryOrder.splice(draggedIndex, 1);
+        categoryOrder.splice(targetIndex, 0, draggedCatName);
+        localStorage.setItem('pos_category_order', JSON.stringify(categoryOrder));
+        renderPOSGrid(currentPOSCategoryFilter);
+      }
+    };
+
+    window.dragStartRecipeCategory = (event, catName) => {
+      event.dataTransfer.setData('text/plain', catName);
+      event.dataTransfer.effectAllowed = 'move';
+    };
+
+    window.dragOverRecipeCategory = (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    };
+
+    window.dropRecipeCategory = (event, targetCatName) => {
+      event.preventDefault();
+      const draggedCatName = event.dataTransfer.getData('text/plain');
+      if (!draggedCatName || draggedCatName === targetCatName) return;
+
+      let categoryOrder = JSON.parse(localStorage.getItem('recipes_category_order') || '[]');
+      const draggedIndex = categoryOrder.indexOf(draggedCatName);
+      const targetIndex = categoryOrder.indexOf(targetCatName);
+
+      if (draggedIndex > -1 && targetIndex > -1) {
+        categoryOrder.splice(draggedIndex, 1);
+        categoryOrder.splice(targetIndex, 0, draggedCatName);
+        localStorage.setItem('recipes_category_order', JSON.stringify(categoryOrder));
+        renderRecipesTable(activeRecipeFilter);
+      }
+    };
+
+    window.dragStartRecipeItemRow = (event, itemId) => {
+      event.dataTransfer.setData('text/plain', itemId);
+      event.dataTransfer.effectAllowed = 'move';
+    };
+
+    window.dragOverRecipeItemRow = (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    };
+
+    window.dropRecipeItemRow = (event, targetItemId) => {
+      event.preventDefault();
+      const draggedItemId = event.dataTransfer.getData('text/plain');
+      if (!draggedItemId || draggedItemId === targetItemId) return;
+
+      const draggedIndex = finalItemsData.findIndex(i => i.id === draggedItemId);
+      const targetIndex = finalItemsData.findIndex(i => i.id === targetItemId);
+
+      if (draggedIndex > -1 && targetIndex > -1) {
+        const [draggedItem] = finalItemsData.splice(draggedIndex, 1);
+        const newTargetIndex = finalItemsData.findIndex(i => i.id === targetItemId);
+        finalItemsData.splice(newTargetIndex, 0, draggedItem);
+
+        const newOrder = finalItemsData.map(i => i.id);
+        localStorage.setItem('recipes_items_order', JSON.stringify(newOrder));
+        
+        renderRecipesTable(activeRecipeFilter);
+      }
+    };
+
     async function renderPOSGrid(cat) {
-      const cats = [...new Set(posItemsData.map(i => i.category || 'General'))];
+      currentPOSCategoryFilter = cat;
+      const rawCats = [...new Set(posItemsData.map(i => i.category || 'General'))];
+      
+      let categoryOrder = JSON.parse(localStorage.getItem('pos_category_order') || '[]');
+      categoryOrder = categoryOrder.filter(c => rawCats.includes(c));
+      rawCats.forEach(c => {
+        if (!categoryOrder.includes(c)) {
+          categoryOrder.push(c);
+        }
+      });
+      localStorage.setItem('pos_category_order', JSON.stringify(categoryOrder));
+
       posCategoryFilters.innerHTML = `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; ${!cat ? 'border-color:var(--primary-color);' : ''}" onclick="window.filterPOS(null)">Todas</button>` + 
-        cats.map(c => `<button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; ${cat === c ? 'border-color:var(--primary-color);' : ''}" onclick="window.filterPOS('${c}')">${c}</button>`).join('');
+        categoryOrder.map(c => `<button class="btn btn-secondary" draggable="true" ondragstart="window.dragStartCategory(event, '${c}')" ondragover="window.dragOverCategory(event)" ondrop="window.dropCategory(event, '${c}')" ondragenter="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='var(--primary-color)';" ondragleave="this.style.background=''; this.style.borderColor='';" style="padding:6px 12px; font-size:12px; cursor:grab; ${cat === c ? 'border-color:var(--primary-color);' : ''}" onclick="window.filterPOS('${c}')">${c}</button>`).join('');
 
       const filtered = cat ? posItemsData.filter(i => (i.category || 'General') === cat) : posItemsData;
 
@@ -2662,7 +3198,6 @@
              <img src="${i.image_url}" style="width:100%; height:100%; object-fit:contain; transform: scale(${imgZoom}); transition: transform 0.3s; pointer-events:none;">
            </div>` : 
           `<div style="width:100%; height:150px; background:rgba(255,255,255,0.05); border-radius:12px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; font-size:40px;">🍔</div>`;
-          
         return `
           <div class="glass-panel stat-card ${isLow ? 'pos-card-low-stock' : ''}" style="cursor:pointer; text-align:center; padding:12px; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="window.addPosItem('${i.id}', '${i.name}')">
             ${imgHtml}
@@ -3037,17 +3572,40 @@
     }
 
     function renderRecipesTable(cat) {
-      const cats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
+      const rawCats = [...new Set(finalItemsData.map(i => i.category || 'Gral'))];
+      
+      let categoryOrder = JSON.parse(localStorage.getItem('recipes_category_order') || '[]');
+      categoryOrder = categoryOrder.filter(c => rawCats.includes(c));
+      rawCats.forEach(c => {
+        if (!categoryOrder.includes(c)) {
+          categoryOrder.push(c);
+        }
+      });
+      localStorage.setItem('recipes_category_order', JSON.stringify(categoryOrder));
+
+      // Sort items based on custom recipes items order
+      const itemsOrder = JSON.parse(localStorage.getItem('recipes_items_order') || '[]');
+      finalItemsData.sort((a, b) => {
+        const indexA = itemsOrder.indexOf(a.id);
+        const indexB = itemsOrder.indexOf(b.id);
+        if (indexA > -1 && indexB > -1) {
+          return indexA - indexB;
+        }
+        if (indexA > -1) return -1;
+        if (indexB > -1) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
       const allActiveStyle = !cat ? 'background:var(--primary-color); color:#fff; border-color:var(--primary-color);' : '';
       recipeFilters.innerHTML = `<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:5px;">
           <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; ${allActiveStyle}" onclick="window.filterRecipes(null)">Todas</button>
-          ${cats.map(c => {
+          ${categoryOrder.map(c => {
             const activeStyle = (c === cat) ? 'background:var(--primary-color); color:#fff; border-color:var(--primary-color);' : '';
-            return `<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; ${activeStyle}" onclick="window.filterRecipes('${c}')">${c}</button>`;
+            return `<button class="btn btn-secondary" draggable="true" ondragstart="window.dragStartRecipeCategory(event, '${c}')" ondragover="window.dragOverRecipeCategory(event)" ondrop="window.dropRecipeCategory(event, '${c}')" ondragenter="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='var(--primary-color)';" ondragleave="this.style.background=''; this.style.borderColor='';" style="padding:4px 10px; font-size:11px; cursor:grab; ${activeStyle}" onclick="window.filterRecipes('${c}')">${c}</button>`;
           }).join('')}
         </div>
-        <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:#8b5cf6; color:#a78bfa;" onclick="window.toggleAllIngredients()">👁️ Ver/Ocultar Composición</button>
+        <button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; border-color:#8b5cf6; color:#a78bfa; flex-shrink:0;" onclick="window.toggleAllIngredients()">👁️ Ver/Ocultar Composición</button>
       </div>`;
 
       let filtered = cat ? finalItemsData.filter(i => (i.category || 'Gral') === cat) : finalItemsData;
@@ -3056,8 +3614,8 @@
       }
 
       listRecipesTable.innerHTML = filtered.map(i => 
-        `<tr><td>
-          <div style="font-weight:bold; font-size:15px; color:white;">${i.name}</div>
+        `<tr draggable="true" ondragstart="window.dragStartRecipeItemRow(event, '${i.id}')" ondragover="window.dragOverRecipeItemRow(event)" ondrop="window.dropRecipeItemRow(event, '${i.id}')" ondragenter="this.style.background='rgba(255,255,255,0.05)';" ondragleave="this.style.background='';" style="cursor:grab;"><td>
+          <div style="font-weight:bold; font-size:15px; color:white; display:flex; align-items:center; gap:8px;"><span style="color:var(--text-muted); cursor:grab; font-size:12px;">☰</span>${i.name}</div>
           <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Categoría: ${i.category || 'Gral'}</div>
           <div class="item-recipe-details hidden" style="font-size:12px; color:var(--primary-color); background:rgba(187,147,92,0.1); padding:6px 10px; border-radius:6px; border:1px solid rgba(187,147,92,0.2); line-height:1.4; margin-top:5px;">
             <strong style="font-size:10px; text-transform:uppercase; display:block; margin-bottom:2px; opacity:0.7;">Composición:</strong>
@@ -3173,26 +3731,40 @@
       }
       
       const htmlRows = currentTicketItems.map((i, index) => {
-        const itemTotal = i.price * i.quantity;
+        const itemSubtotal = i.price * i.quantity;
+        const itemDiscount = itemSubtotal * ((i.discount_percent || 0) / 100);
+        const itemTotal = itemSubtotal - itemDiscount;
         
         let priceColHtml = '';
         if (i.isEditing) {
           priceColHtml = `<div style="display:flex; align-items:center; gap:4px;">
             <span style="font-size:12px; color:var(--text-muted);">Total: $</span>
-            <input type="number" id="pos-edit-price-${index}" value="${itemTotal}" style="width:90px; padding:4px 8px; font-size:13px; border-radius:6px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:#10b981; font-weight:bold; outline:none; text-align:right; margin-bottom:0;" onkeydown="if(event.key === 'Enter') window.saveTicketItemPrice(${index})">
+            <input type="number" id="pos-edit-price-${index}" value="${itemSubtotal}" style="width:90px; padding:4px 8px; font-size:13px; border-radius:6px; border:1px solid var(--primary-color); background:rgba(0,0,0,0.3); color:#10b981; font-weight:bold; outline:none; text-align:right; margin-bottom:0;" onkeydown="if(event.key === 'Enter') window.saveTicketItemPrice(${index})">
             <button class="btn" style="padding:2px 6px; color:#10b981; background:none; font-size:14px;" onclick="window.saveTicketItemPrice(${index})" title="Guardar Precio">💾</button>
           </div>`;
         } else {
+          const discountTag = i.discount_percent > 0 ? `<span style="font-size:10px; color:#f87171; font-weight:normal; margin-right:4px;">(-${i.discount_percent}%)</span>` : '';
+          const originalStrike = i.discount_percent > 0 ? `<span style="font-size:11px; text-decoration:line-through; color:var(--text-muted); margin-right:4px;">${formatCurrency(itemSubtotal)}</span>` : '';
           priceColHtml = `<div style="display:flex; align-items:center; gap:6px;">
             <span style="font-size:12px; color:var(--text-muted);">Total:</span>
+            ${originalStrike}
+            ${discountTag}
             <span style="font-size:13px; color:#10b981; font-weight:bold;">${formatCurrency(itemTotal)}</span>
             <button class="btn" style="padding:2px 6px; color:var(--primary-color); background:none; font-size:12px; opacity:0.7;" onclick="window.editTicketItemPrice(${index})" title="Editar Precio">✏️</button>
           </div>`;
         }
 
+        let tagBadgeHtml = '';
+        if (i.ticket_tag_id) {
+          const tagObj = allTicketTagsGlobal.find(t => t.id === i.ticket_tag_id);
+          if (tagObj) {
+            tagBadgeHtml = `<span style="background:${tagObj.color}; color:#fff; font-size:9px; font-weight:bold; padding:1px 5px; border-radius:12px; margin-left:6px;">${tagObj.name}</span>`;
+          }
+        }
+
         return `<div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; gap:6px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:bold; font-size:14px; color:#fff;">${i.name}</span>
+            <span style="font-weight:bold; font-size:14px; color:#fff;">${i.name}${tagBadgeHtml}</span>
             <button class="btn" style="padding:2px 8px; color:#ef4444; background:none; font-size:14px;" onclick="window.removeTicketItem(${index})">✕</button>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -3206,11 +3778,34 @@
         </div>`;
       }).join('');
 
-      const grandTotal = currentTicketItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-      const grandTotalHtml = `<div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding-top:10px; border-top:2px solid var(--primary-color); font-weight:bold; font-size:16px;">
-        <span style="color:#fff;">Total del Ticket:</span>
-        <span style="color:var(--primary-color);">${formatCurrency(grandTotal)}</span>
-      </div>`;
+      const subtotal = currentTicketItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+      const totalDiscount = currentTicketItems.reduce((acc, curr) => acc + ((curr.price * curr.quantity) * ((curr.discount_percent || 0) / 100)), 0);
+      const grandTotal = subtotal - totalDiscount;
+
+      let grandTotalHtml = '';
+      if (totalDiscount > 0) {
+        grandTotalHtml = `
+          <div style="margin-top:15px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.1); font-size:14px; display:flex; justify-content:space-between; align-items:center; color:var(--text-muted);">
+            <span>Subtotal:</span>
+            <span>${formatCurrency(subtotal)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; color:#ef4444; font-size:14px; margin-top:5px;">
+            <span>Descuento aplicado:</span>
+            <span>-${formatCurrency(totalDiscount)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:10px; border-top:2px solid var(--primary-color); font-weight:bold; font-size:16px;">
+            <span style="color:#fff;">Total del Ticket:</span>
+            <span style="color:var(--primary-color);">${formatCurrency(grandTotal)}</span>
+          </div>
+        `;
+      } else {
+        grandTotalHtml = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding-top:10px; border-top:2px solid var(--primary-color); font-weight:bold; font-size:16px;">
+            <span style="color:#fff;">Total del Ticket:</span>
+            <span style="color:var(--primary-color);">${formatCurrency(grandTotal)}</span>
+          </div>
+        `;
+      }
 
       ticketList.innerHTML = htmlRows + grandTotalHtml;
     }
@@ -3257,14 +3852,22 @@
     }
 
     window.addPosItem = (id, name) => {
-      const existing = currentTicketItems.find(i => i.product_id === id);
       const posItem = posItemsData.find(i => i.id === id);
       const defaultPrice = posItem ? (posItem.sale_price || 0) : 0;
+      
+      const existing = currentTicketItems.find(i => i.product_id === id && (i.discount_percent || 0) === 0 && !i.ticket_tag_id);
       
       if (existing) {
         existing.quantity += 1;
       } else {
-        currentTicketItems.push({ product_id: id, name: name, quantity: 1, price: defaultPrice });
+        currentTicketItems.push({ 
+          product_id: id, 
+          name: name, 
+          quantity: 1, 
+          price: defaultPrice,
+          discount_percent: 0,
+          ticket_tag_id: null
+        });
       }
       renderTicket();
     }
@@ -5166,6 +5769,15 @@
         });
       }
 
+      const historyFilterTag = document.getElementById('history-filter-tag');
+      if(historyFilterTag) {
+        historyFilterTag.addEventListener('change', () => {
+          const fromD = document.getElementById('history-date-from').value;
+          const toD = document.getElementById('history-date-to').value;
+          loadHistoryView(fromD, toD);
+        });
+      }
+
 
 
       const dateField = document.getElementById('pos-sale-date');
@@ -5200,12 +5812,14 @@
         btnProcessSale.disabled = true;
         const tNum = posTicketNum.value || `T-${Math.floor(Math.random()*10000)}`;
         const sDate = document.getElementById('pos-sale-date').value;
-        const res = await processSale(tNum, currentTicketItems, defaultDepositId, sDate, selectedOrderType);
+        const res = await processSale(tNum, currentTicketItems, defaultDepositId, sDate, selectedOrderType, selectedDiscountName, selectedDiscountPercent, selectedTicketTagId);
         if (res.success) {
           await customAlert("Venta registrada y stock descontado por receta!", "Éxito");
           currentTicketItems = [];
           posTicketNum.value = '';
           window.setOrderType('Salón');
+          window.setTicketDiscount(0, 'Ninguno');
+          window.selectTicketTag(null);
           renderTicket();
         } else {
           await customAlert("Error procesando venta: " + res.error?.message, "Error");
@@ -5805,7 +6419,7 @@
         for (let i = 0; i < saleIds.length; i += CHUNK_SIZE) {
            const chunk = saleIds.slice(i, i + CHUNK_SIZE);
            const { data: chunkData } = await supabase.from('sale_items')
-             .select('product_id, quantity')
+             .select('product_id, quantity, ticket_tag_id')
              .in('sale_id', chunk);
            if (chunkData) saleItems = saleItems.concat(chunkData);
         }
@@ -5816,14 +6430,23 @@
           return;
         }
 
-        // Aggregate counts
+        // Aggregate counts: group by product_id and ticket_tag_id
         const aggregated = {};
         saleItems.forEach(si => {
-          if (!aggregated[si.product_id]) aggregated[si.product_id] = 0;
-          aggregated[si.product_id] += si.quantity;
+          const tagId = si.ticket_tag_id || 'none';
+          const key = `${si.product_id}_${tagId}`;
+          if (!aggregated[key]) {
+            aggregated[key] = {
+              product_id: si.product_id,
+              ticket_tag_id: si.ticket_tag_id || null,
+              quantity: 0
+            };
+          }
+          aggregated[key].quantity += parseFloat(si.quantity) || 0;
         });
 
-        const productIds = Object.keys(aggregated);
+        const keys = Object.keys(aggregated);
+        const productIds = [...new Set(keys.map(k => aggregated[k].product_id))];
         
         let products = [];
         for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
@@ -5832,11 +6455,39 @@
            if (pChunk) products = products.concat(pChunk);
         }
 
-        lastProductSalesData = products.map(p => ({
-          ...p,
-          totalQty: aggregated[p.id] || 0,
-          revenue: (aggregated[p.id] || 0) * (p.sale_price || 0)
-        })).sort((a, b) => b.totalQty - a.totalQty);
+        // Fetch all tags to resolve names and colors
+        let tagsMap = {};
+        try {
+          const { data: tags } = await supabase.from('ticket_tags').select('id, name, color');
+          if (tags) {
+            tags.forEach(t => {
+              tagsMap[t.id] = t;
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching tags in product sales:", err);
+        }
+
+        lastProductSalesData = keys.map(key => {
+          const agg = aggregated[key];
+          const p = products.find(prod => prod.id === agg.product_id) || { name: 'Desconocido', sale_price: 0, category: 'General' };
+          const tag = agg.ticket_tag_id ? tagsMap[agg.ticket_tag_id] : null;
+          
+          const displayName = tag ? `${p.name} [${tag.name}]` : p.name;
+          const displayColor = tag ? tag.color : null;
+          
+          return {
+            id: p.id,
+            name: displayName,
+            tag_color: displayColor,
+            image_url: p.image_url,
+            image_zoom: p.image_zoom,
+            sale_price: p.sale_price || 0,
+            category: p.category || 'General',
+            totalQty: agg.quantity,
+            revenue: agg.quantity * (p.sale_price || 0)
+          };
+        }).sort((a, b) => b.totalQty - a.totalQty);
 
         renderProductSalesCategories();
         renderProductSalesGallery();
@@ -5849,6 +6500,11 @@
         const allCats = new Set(lastProductSalesData.map(p => p.category || 'Sin Categoría'));
         const catArray = Array.from(allCats).sort();
         
+        const hasPromotions = lastProductSalesData.some(p => p.tag_color !== null);
+        if (hasPromotions) {
+          catArray.push('Promociones');
+        }
+
         if (catArray.length === 0) {
            container.innerHTML = '<span style="color:var(--text-muted); font-size:12px;">No hay familias en este periodo.</span>';
            return;
@@ -5880,7 +6536,17 @@
         
         let data = lastProductSalesData;
         if (activePSalesCategories.size > 0) {
-           data = data.filter(p => activePSalesCategories.has(p.category || 'Sin Categoría'));
+           data = data.filter(p => {
+             let match = false;
+             activePSalesCategories.forEach(cat => {
+               if (cat === 'Promociones') {
+                 if (p.tag_color !== null) match = true;
+               } else {
+                 if ((p.category || 'Sin Categoría') === cat) match = true;
+               }
+             });
+             return match;
+           });
         }
 
         if (mode === 'grid') {
@@ -5893,10 +6559,23 @@
                </div>` : 
               `<div style="width:100%; height:180px; background:rgba(255,255,255,0.05); border-radius:12px; margin-bottom:12px; display:flex; align-items:center; justify-content:center; font-size:50px;">🍔</div>`;
 
+            let displayName = p.name;
+            let tagBadge = '';
+            if (p.name.includes('[') && p.name.includes(']')) {
+              const match = p.name.match(/(.+) \[(.+)\]/);
+              if (match) {
+                displayName = match[1];
+                const tagName = match[2];
+                const badgeColor = p.tag_color || '#3b82f6';
+                tagBadge = `<span style="position:absolute; top:8px; left:8px; background:${badgeColor}; color:#fff; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.3); z-index:2;">${tagName}</span>`;
+              }
+            }
+
             return `
-              <div class="glass-panel" style="padding:15px; text-align:center; border-top: 3px solid var(--primary-color);">
+              <div class="glass-panel" style="padding:15px; text-align:center; border-top: 3px solid var(--primary-color); position:relative;">
+                 ${tagBadge}
                  ${imgHtml}
-                 <h3 style="font-size:18px; margin-bottom:5px; color:var(--text-main); height:44px; display:flex; align-items:center; justify-content:center; line-height:1.2;">${p.name}</h3>
+                 <h3 style="font-size:18px; margin-bottom:5px; color:var(--text-main); height:44px; display:flex; align-items:center; justify-content:center; line-height:1.2;">${displayName}</h3>
                  <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
                     Precio: ${formatCurrency(p.sale_price || 0)}
                  </div>
@@ -5911,6 +6590,10 @@
           }).join('');
         } else {
           grid.style.display = 'block';
+          
+          const totalVentas = data.reduce((sum, p) => sum + p.totalQty, 0);
+          const totalRecaudado = data.reduce((sum, p) => sum + p.revenue, 0);
+
           grid.innerHTML = `
             <div class="glass-panel" style="overflow-x:auto;">
               <table class="data-table" style="width:100%; text-align:left;">
@@ -5923,15 +6606,37 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${data.map(p => `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
-                       <td style="padding:12px 15px; font-weight:bold;">${p.name}</td>
+                  ${data.map(p => {
+                    let nameHtml = p.name;
+                    if (p.name.includes('[') && p.name.includes(']')) {
+                      const match = p.name.match(/(.+) \[(.+)\]/);
+                      if (match) {
+                        const baseName = match[1];
+                        const tagName = match[2];
+                        const badgeColor = p.tag_color || '#3b82f6';
+                        nameHtml = `<div style="display:flex; align-items:center; gap:8px;">
+                          <span>${baseName}</span>
+                          <span style="background:${badgeColor}; color:#fff; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${tagName}</span>
+                        </div>`;
+                      }
+                    }
+
+                    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+                       <td style="padding:12px 15px; font-weight:bold;">${nameHtml}</td>
                        <td style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px;">${p.totalQty}</td>
                        <td style="text-align:right; color:var(--text-muted);">${formatCurrency(p.sale_price || 0)}</td>
                        <td style="text-align:right; font-weight:bold; color:var(--text-main); font-size:14px;">${formatCurrency(p.revenue)}</td>
-                    </tr>
-                  `).join('')}
+                    </tr>`;
+                  }).join('')}
                 </tbody>
+                <tfoot>
+                  <tr style="border-top:2px solid var(--primary-color); font-weight:bold; background:rgba(255,255,255,0.02);">
+                    <td style="padding:15px; font-size:15px; color:#fff;">TOTALES</td>
+                    <td style="text-align:center; color:var(--primary-color); font-size:18px;">${totalVentas}</td>
+                    <td style="text-align:right; color:var(--text-muted);">-</td>
+                    <td style="text-align:right; color:var(--text-main); font-size:16px;">${formatCurrency(totalRecaudado)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           `;
